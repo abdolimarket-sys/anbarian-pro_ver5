@@ -251,8 +251,7 @@ export async function tryRecoverFromExternalBackup(): Promise<'restored' | 'none
 
     // چند فایل اخیر را امتحان می‌کنیم تا به اولین پشتیبانِ دارای کالا برسیم
     const tryList = candidates.slice(0, 5);
-    let chosen: Cand | null = null;
-    let parsed: {
+    type BackupPayload = {
       schema?: string;
       app?: {
         products?: unknown[];
@@ -267,7 +266,9 @@ export async function tryRecoverFromExternalBackup(): Promise<'restored' | 'none
       costing?: unknown;
       localUsers?: unknown;
       operator?: string;
-    } | null = null;
+    };
+    let chosen: Cand | null = null;
+    let parsed: BackupPayload | null = null;
 
     for (const cand of tryList) {
       try {
@@ -275,7 +276,7 @@ export async function tryRecoverFromExternalBackup(): Promise<'restored' | 'none
           ? await NativeDriveBackup.read({ id: cand.id, name: cand.name })
           : await NativeAutoBackup.read({ name: cand.name });
         const raw = fromBase64(file.data);
-        const p = JSON.parse(raw) as typeof parsed;
+        const p = JSON.parse(raw) as BackupPayload;
         if (!p || p.schema !== 'anbarin-full-device-backup' || !p.app) continue;
         const count = Array.isArray(p.app.products) ? p.app.products.length : 0;
         // اولویت با پشتیبانی که واقعاً کالا دارد
