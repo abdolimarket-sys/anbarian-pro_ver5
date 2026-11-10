@@ -50,22 +50,23 @@ public class AutoBackupPlugin extends Plugin {
         if (raw == null || raw.isEmpty()) return null;
         try { return Uri.parse(raw); } catch (Exception e) { return null; }
     }
-/** تشخیص اینکه URI مربوط به Google Drive هست یا نه */
-private boolean looksLikeDrive(Uri uri) {
-    if (uri == null) return false;
-    String authority = uri.getAuthority();
-    if (authority != null) {
-        String a = authority.toLowerCase();
-        if (a.contains("com.google.android.apps.docs") ||
-            a.contains("com.google.android.apps.docs.storage") ||
-            a.startsWith("com.google.android.apps.docs")) {
-            return true;
+
+    /** تشخیص اینکه URI مربوط به Google Drive هست یا نه */
+    private boolean looksLikeDrive(Uri uri) {
+        if (uri == null) return false;
+        String authority = uri.getAuthority();
+        if (authority != null) {
+            String a = authority.toLowerCase();
+            if (a.contains("com.google.android.apps.docs") ||
+                a.contains("com.google.android.apps.docs.storage") ||
+                a.startsWith("com.google.android.apps.docs")) {
+                return true;
+            }
         }
+        String s = uri.toString().toLowerCase();
+        return s.contains("com.google.android.apps.docs");
     }
-    // بعضی دستگاه‌ها authority رو متفاوت می‌ذارن
-    String s = uri.toString().toLowerCase();
-    return s.contains("com.google.android.apps.docs");
-}
+
     @PluginMethod
     public void getStatus(PluginCall call) {
         JSObject res = new JSObject();
