@@ -138,7 +138,7 @@ import {
   activateLicenseFromInput,
   deactivateLicense,
   requirePremium,
-  getDeviceId,,
+  getDeviceId,
   saveStoredLicense
 } from './modules/license';
 import { activateOfflineLicenseFile } from './modules/offline-license';
