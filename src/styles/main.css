@@ -2489,14 +2489,17 @@ body > .invoice-jalali-calendar {
 }
 
 
-/* ——— تسویه فاکتور: مراحل پرداخت ——— */
+/* ——— تسویه فاکتور / نوع دریافت: کادرهای پرداخت همرنگ تم ——— */
 .settlement-stage-card {
-  border: 1px solid var(--border, #b9ddc2);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm, 12px);
   padding: 14px;
   margin: 10px 0;
-  background: linear-gradient(180deg, var(--card, #fff) 0%, var(--primary-soft, #e5f3e8) 160%);
+  background: linear-gradient(180deg, var(--card) 0%, var(--primary-soft) 180%);
   box-shadow: var(--shadow-sm);
+  color: var(--text);
+  direction: rtl;
+  text-align: right;
 }
 .settlement-stage-top {
   display: grid;
@@ -2508,48 +2511,59 @@ body > .invoice-jalali-calendar {
   display: block;
   font-size: 0.85rem;
   font-weight: 700;
-  color: var(--text-soft, #617d70);
+  color: var(--text-soft);
   margin-bottom: 6px;
+  text-align: right;
 }
 .settlement-method-chips {
   display: flex;
   flex-wrap: wrap;
+  flex-direction: row;
   gap: 6px;
-  padding: 4px;
-  background: var(--bg2, #edf7ef);
-  border: 1px solid var(--border, #b9ddc2);
+  padding: 5px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
   border-radius: 999px;
+  direction: rtl;
 }
 .settlement-method-chip {
   flex: 1 1 auto;
   min-width: 72px;
   border: none;
   background: transparent;
-  color: var(--text, #12483d);
+  color: var(--text);
   font: inherit;
   font-weight: 700;
   font-size: 0.9rem;
-  padding: 8px 12px;
+  padding: 9px 14px;
   border-radius: 999px;
   cursor: pointer;
   transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+  text-align: center;
 }
 .settlement-method-chip.is-active {
-  background: linear-gradient(135deg, var(--primary-dark, #075c4d), var(--primary, #08734f));
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(7, 92, 77, 0.25);
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(7, 92, 77, 0.28);
 }
 .settlement-method-chip:not(.is-active):hover {
-  background: var(--primary-soft, #e5f3e8);
-  color: var(--primary-dark, #075c4d);
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+}
+.settlement-amount-field {
+  text-align: right;
 }
 .settlement-amount-field input {
   font-weight: 700;
-  border-color: var(--border, #b9ddc2) !important;
+  border-color: var(--border) !important;
+  background: var(--card) !important;
+  color: var(--text) !important;
+  text-align: right;
+  direction: ltr;
 }
 .settlement-amount-field input:focus {
-  outline: 2px solid var(--primary, #08734f);
-  border-color: var(--primary, #08734f) !important;
+  outline: 2px solid var(--primary);
+  border-color: var(--primary) !important;
 }
 .settlement-totals-grid {
   display: grid;
@@ -2557,16 +2571,17 @@ body > .invoice-jalali-calendar {
   gap: 10px;
 }
 .settlement-totals-grid div {
-  background: var(--primary-soft, #e5f3e8);
-  border: 1px solid var(--border, #b9ddc2);
+  background: var(--primary-soft);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  text-align: right;
 }
-.settlement-totals-grid span { color: var(--text-soft, #617d70); font-size: 0.85rem; }
-.settlement-totals-grid b { color: var(--primary-dark, #075c4d); font-size: 1rem; }
+.settlement-totals-grid span { color: var(--text-soft); font-size: 0.85rem; }
+.settlement-totals-grid b { color: var(--primary-dark); font-size: 1rem; }
 .settlement-totals-grid .is-credit {
   background: #fff7ed;
   border-color: #fdba74;
@@ -2574,22 +2589,62 @@ body > .invoice-jalali-calendar {
 .settlement-totals-grid .is-credit b { color: var(--warning, #d97706); }
 .settlement-cheque-fields {
   margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--border, #b9ddc2);
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--primary-soft);
+  direction: rtl;
+  text-align: right;
+}
+.settlement-cheque-fields .field {
+  text-align: right;
+}
+.settlement-cheque-fields .field input {
+  background: var(--card) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px;
+  min-height: 42px;
+  text-align: right;
 }
 .settlement-cheque-fields[hidden] { display: none !important; }
 #settlementAdd {
-  border-color: var(--primary, #08734f) !important;
-  color: var(--primary-dark, #075c4d) !important;
-  background: var(--primary-soft, #e5f3e8) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary-dark) !important;
+  background: var(--primary-soft) !important;
   font-weight: 700;
+}
+/* کادرهای روش پرداخت در فرم فاکتور */
+.invoice-payment-row {
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  padding: 12px !important;
+  margin: 10px 0 !important;
+  background: linear-gradient(180deg, var(--card) 0%, var(--primary-soft) 180%) !important;
+  color: var(--text);
+  direction: rtl;
+  text-align: right;
+}
+.invoice-payment-row .field {
+  text-align: right;
+}
+.invoice-payment-row .field input,
+.invoice-payment-row .field select {
+  background: var(--card) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+  border-radius: 10px;
+  min-height: 42px;
+  text-align: right;
+}
+.invoice-payment-row [data-pay-cheque] input {
+  text-align: right;
 }
 @media (max-width: 640px) {
   .settlement-stage-top { grid-template-columns: 1fr; }
   .settlement-totals-grid { grid-template-columns: 1fr; }
   .settlement-method-chips { border-radius: 14px; }
 }
-
 
 /* ——— فهرست فشرده فاکتورهای ثبت‌شده پایین فرم ——— */
 .invoice-registered-block {
@@ -2776,7 +2831,8 @@ body > .invoice-jalali-calendar {
   padding: 8px 10px;
   border: 1px solid var(--border, #ddd);
   border-radius: 10px;
-  background: var(--bg-soft, #f8fafc);
+  background: var(--primary-soft, #e5f3e8);
+  color: var(--text, #12483d);
 }
 .report-fold > summary {
   cursor: pointer;
@@ -2812,6 +2868,105 @@ body > .invoice-jalali-calendar {
   .report-actions-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+
+
+/* ——— جداول گزارش انبارگردانی و نتایج حسابداری: کنتراست تم سبز ——— */
+#page-reports .table-wrap,
+#page-reports .table-wrap-compact,
+#cardexResult .table-wrap,
+#accountingReportsWorkspace .table-wrap,
+#arResult .ar-table-scroll {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: auto;
+  background: var(--card);
+  color: var(--text);
+}
+
+#page-reports .data-table,
+#page-reports .data-table-compact,
+#cardexResult .data-table,
+#accountingReportsWorkspace .data-table,
+#arResult .ar-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--text);
+  background: var(--card);
+}
+
+#page-reports .data-table th,
+#page-reports .data-table-compact th,
+#cardexResult .data-table th,
+#accountingReportsWorkspace .data-table th,
+#arResult .ar-report-table th {
+  background: var(--primary-soft) !important;
+  color: var(--primary-dark) !important;
+  font-weight: 800;
+  border-bottom: 1px solid var(--border);
+  padding: 9px 10px;
+}
+
+#page-reports .data-table td,
+#page-reports .data-table-compact td,
+#cardexResult .data-table td,
+#accountingReportsWorkspace .data-table td,
+#arResult .ar-report-table td {
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--border-light);
+  padding: 8px 10px;
+  background: transparent;
+}
+
+#page-reports .data-table tbody tr:nth-child(even) td,
+#cardexResult .data-table tbody tr:nth-child(even) td,
+#accountingReportsWorkspace .data-table tbody tr:nth-child(even) td {
+  background: var(--bg2);
+}
+
+#page-reports .report-fold,
+#page-reports .report-panel-compact,
+#page-reports .report-compact-dash {
+  color: var(--text);
+}
+
+#page-reports .report-fold > summary {
+  color: var(--primary-dark);
+}
+
+#page-reports .hint,
+#cardexResult.hint,
+#arResult .hint {
+  color: var(--text-soft) !important;
+}
+
+#page-reports .stat-card,
+#page-reports .stats-grid-compact .stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+#page-reports .stat-value,
+#page-reports .stat-card strong {
+  color: var(--primary-dark);
+}
+
+#page-reports .stat-label {
+  color: var(--text-soft);
+}
+
+#arResult.ar-result-panel,
+#arResult {
+  color: var(--text);
+}
+
+[data-theme='dark'] #page-reports .data-table tbody tr:nth-child(even) td,
+[data-theme='dark'] #cardexResult .data-table tbody tr:nth-child(even) td,
+[data-theme='dark'] #accountingReportsWorkspace .data-table tbody tr:nth-child(even) td,
+[data-theme='dark'] #arResult .ar-report-table tbody tr:nth-child(even) td {
+  background: var(--bg2);
 }
 
 /* ——— تنظیمات حسابداری بهینه‌شده ——— */
@@ -2876,4 +3031,118 @@ body > .invoice-jalali-calendar {
   align-items: center;
   gap: 10px;
   margin-top: 14px;
+}
+
+
+/* دیالوگ سایز چاپ باید بالای همه برگه‌های فاکتور/گزارش باشد */
+#anbarinPrintSizeModal {
+  z-index: 50000 !important;
+}
+
+
+/* ——— انتخاب لوگو فروشگاه ——— */
+.logo-picker-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--card) 0%, var(--primary-soft) 160%);
+  padding: 12px;
+  color: var(--text);
+}
+.logo-picker-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.logo-picker-head strong {
+  color: var(--primary-dark);
+  font-size: 0.95rem;
+}
+.logo-picker-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.logo-picker-preview-wrap {
+  width: 96px;
+  height: 72px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: var(--bg2);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.logo-picker-preview {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.logo-picker-placeholder {
+  font-size: 0.78rem;
+  color: var(--text-soft);
+  text-align: center;
+  padding: 4px;
+}
+.logo-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.logo-picker-file-btn {
+  cursor: pointer;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ——— دکمه‌های پشتیبان خودکار / آنلاین ——— */
+.auto-backup-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.auto-backup-btn {
+  border: 1px solid var(--border) !important;
+  background: var(--card) !important;
+  color: var(--text) !important;
+  font-weight: 700;
+  border-radius: 10px !important;
+  min-height: 40px;
+  box-shadow: none !important;
+  transition: background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.auto-backup-btn.is-available:hover {
+  background: var(--primary-soft) !important;
+  color: var(--primary-dark) !important;
+  border-color: var(--primary) !important;
+}
+.auto-backup-btn.is-active {
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary)) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  box-shadow: 0 2px 8px rgba(7, 92, 77, 0.28) !important;
+}
+.auto-backup-btn.is-available {
+  opacity: 1;
+}
+.auto-backup-btn-run {
+  background: var(--primary-soft) !important;
+  color: var(--primary-dark) !important;
+  border-color: var(--primary) !important;
+}
+.auto-backup-status {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text) !important;
 }

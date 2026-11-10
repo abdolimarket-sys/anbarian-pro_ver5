@@ -680,6 +680,7 @@ export function refreshTeamOnlineStatus(): void {
   else if (!cfg.url) setOnlineStatus(`${modeText} برای همگام‌سازی آنلاین، ابتدا نشانی Firebase را وارد و ذخیره کنید.`, true);
   else if (!navigator.onLine) setOnlineStatus(`${modeText} اینترنت قطع است؛ شمارش محلی حفظ می‌شود و همگام‌سازی خودکار پس از اتصال از سر گرفته می‌شود.`);
   else setOnlineStatus(`${modeText} همگام‌سازی خودکار هر 5 ثانیه بررسی می‌شود؛ می‌توانید دستی هم همگام‌سازی کنید.`);
+  paintTeamModeChips();
 }
 
 function makeOnlinePack(): RemoteDevicePack {
@@ -838,9 +839,29 @@ function configureAutoSync(): void {
   }, 5000);
 }
 
+function paintTeamModeChips(): void {
+  const mode = currentTeamSyncMode();
+  const modeEl = document.getElementById('teamSyncMode') as HTMLSelectElement | null;
+  if (modeEl && modeEl.value !== mode) modeEl.value = mode;
+  document.querySelectorAll<HTMLElement>('[data-team-mode]').forEach((btn) => {
+    const on = btn.dataset.teamMode === mode;
+    btn.classList.toggle('is-active', on);
+    btn.classList.toggle('is-available', !on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  // دکمه همگام‌سازی آنلاین: در حالت آفلاین غیرفعال‌تر دیده شود
+  const syncNow = document.getElementById('btnSyncTeamOnline');
+  if (syncNow) {
+    const online = mode === 'live' || mode === 'hybrid';
+    syncNow.classList.toggle('is-active', online);
+    syncNow.classList.toggle('is-available', !online);
+  }
+}
+
 export function initializeTeamOnlineSync(): void {
   const modeEl = document.getElementById('teamSyncMode') as HTMLSelectElement | null;
   if (modeEl) modeEl.value = currentTeamSyncMode();
+  paintTeamModeChips();
   if (!onlineSyncInitialized) {
     onlineSyncInitialized = true;
     window.addEventListener('online', () => {

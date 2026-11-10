@@ -176,7 +176,7 @@ export function choosePaperSize(opts: {
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.style.cssText =
-      'position:fixed;inset:0;z-index:10000;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:16px;';
+      'position:fixed;inset:0;z-index:50000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px;';
 
     const card = document.createElement('div');
     card.style.cssText =

@@ -367,6 +367,24 @@ export function updateLicenseUI(): void {
   if (el) el.textContent = text;
   const did = document.getElementById('deviceIdDisplay') as HTMLInputElement | null;
   if (did) did.value = st.deviceId;
+
+  // ظاهر فعال/غیرفعال دکمه‌های لایسنس
+  const active = !!(st.licensed || getOfflineLicense());
+  document.querySelectorAll<HTMLElement>('[data-license-role]').forEach((btn) => {
+    const role = btn.dataset.licenseRole || '';
+    let on = false;
+    if (role === 'deactivate') on = active;
+    if (role === 'activate-file' || role === 'activate-key') on = !active;
+    if (role === 'copy-id') {
+      btn.classList.remove('is-active');
+      btn.classList.add('is-available');
+      btn.removeAttribute('aria-pressed');
+      return;
+    }
+    btn.classList.toggle('is-active', on);
+    btn.classList.toggle('is-available', !on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
 }
 
 /** تولید کلید برای ادمین (ابزار داخلی) */

@@ -92,7 +92,7 @@ export function printHtmlSafely(
     frame.title = title;
     frame.setAttribute('aria-hidden', 'true');
     frame.style.cssText =
-      'position:fixed;left:0;top:0;width:1px;height:1px;border:0;opacity:0.01;pointer-events:none;';
+      'position:fixed;left:0;top:0;width:1px;height:1px;border:0;opacity:0.01;pointer-events:none;z-index:50000;';
     let started = false;
     const cleanup = () => {
       window.setTimeout(() => {

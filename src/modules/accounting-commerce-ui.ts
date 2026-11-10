@@ -483,10 +483,10 @@ function settlementRow(part?:InvoicePaymentPart, opts?:{autoRemaining?:boolean})
  <div class="settlement-stage-top">
    <div class="settlement-method-picker" data-settle-method-wrap>
      <span class="settlement-method-label">روش پرداخت</span>
-     <div class="settlement-method-chips" role="radiogroup" aria-label="روش پرداخت">
-       <button type="button" class="settlement-method-chip ${method==='cash'?'is-active':''}" data-settle-method-btn="cash" aria-pressed="${method==='cash'}">نقدی</button>
-       <button type="button" class="settlement-method-chip ${method==='card'?'is-active':''}" data-settle-method-btn="card" aria-pressed="${method==='card'}">کارت‌خوان</button>
+     <div class="settlement-method-chips" role="radiogroup" aria-label="روش پرداخت" dir="rtl">
        <button type="button" class="settlement-method-chip ${method==='cheque'?'is-active':''}" data-settle-method-btn="cheque" aria-pressed="${method==='cheque'}">چک</button>
+       <button type="button" class="settlement-method-chip ${method==='card'?'is-active':''}" data-settle-method-btn="card" aria-pressed="${method==='card'}">کارت‌خوان</button>
+       <button type="button" class="settlement-method-chip ${method==='cash'?'is-active':''}" data-settle-method-btn="cash" aria-pressed="${method==='cash'}">نقدی</button>
      </div>
      <select data-settle-method hidden aria-hidden="true">
        <option value="cash" ${method==='cash'?'selected':''}>نقدی</option>
@@ -499,12 +499,12 @@ function settlementRow(part?:InvoicePaymentPart, opts?:{autoRemaining?:boolean})
    </label>
    <button type="button" class="btn btn-sm btn-secondary settlement-remove-btn" data-settle-remove title="حذف این مرحله">حذف</button>
  </div>
- <div class="settlement-cheque-fields form-grid" data-settle-cheque-block ${isCheque?'':'hidden'} style="${isCheque?'':'display:none'}">
-   <label class="field">شماره چک<input data-settle-cheque-number value="${esc(part?.chequeNumber||'')}" autocomplete="off"></label>
-   <label class="field">بانک<input data-settle-cheque-bank value="${esc(part?.chequeBank||'')}" autocomplete="off"></label>
-   <label class="field">شماره صیادی *<input data-settle-cheque-account value="${esc(part?.chequeAccount||'')}" autocomplete="off" placeholder="شناسه صیادی ۱۶ یا ۲۰ رقمی" inputmode="numeric"></label>
-   <label class="field">تاریخ سررسید چک<input data-settle-cheque-due value="${esc(part?.chequeDueDate||'')}" placeholder="1405/01/30" inputmode="numeric" autocomplete="off"></label>
-   <label class="field">توضیحات چک<input data-settle-cheque-note value="${esc(part?.note||'')}" autocomplete="off"></label>
+ <div class="settlement-cheque-fields form-grid" data-settle-cheque-block dir="rtl" ${isCheque?'':'hidden'} style="${isCheque?'':'display:none'}">
+   <label class="field">شماره چک *<input data-settle-cheque-number value="${esc(part?.chequeNumber||'')}" autocomplete="off" inputmode="numeric" dir="rtl"></label>
+   <label class="field">بانک *<input data-settle-cheque-bank value="${esc(part?.chequeBank||'')}" autocomplete="off" dir="rtl"></label>
+   <label class="field">شماره صیادی *<input data-settle-cheque-account value="${esc(part?.chequeAccount||'')}" autocomplete="off" placeholder="شناسه صیادی ۱۶ یا ۲۰ رقمی" inputmode="numeric" dir="ltr" style="text-align:right"></label>
+   <label class="field">تاریخ سررسید چک *<input data-settle-cheque-due value="${esc(part?.chequeDueDate||'')}" placeholder="1405/01/30" inputmode="numeric" autocomplete="off" dir="ltr" style="text-align:right"></label>
+   <label class="field">توضیحات چک<input data-settle-cheque-note value="${esc(part?.note||'')}" autocomplete="off" dir="rtl"></label>
  </div>
  </div>`;
 }

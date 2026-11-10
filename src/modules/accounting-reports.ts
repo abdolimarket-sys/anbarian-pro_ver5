@@ -8,7 +8,7 @@ import { products } from './state';
 import { enhanceDateFields } from './date-picker';
 import { enhanceSelectWithSearch } from './searchable-select';
 import { toast } from './ui';
-import { downloadFile, dateStr, printHtmlSafely } from '@/utils/helpers';
+import { downloadFile, dateStr, printHtmlSafely, shareFileContent } from '@/utils/helpers';
 
 type DateRange = { from?: string; to?: string; fiscalPeriodId?: string };
 type Totals = { debitRial: number; creditRial: number; balanceRial: number };
@@ -233,24 +233,36 @@ function ensureReportResultStyles():void{
   const style=document.createElement('style');
   style.id='ar-report-result-styles';
   style.textContent=`
-#arResult{display:flex;flex-direction:column;gap:10px;margin-top:4px}
-#arResult .ar-result-toolbar{position:sticky;top:0;z-index:3;background:var(--card-bg, #fff);padding:6px 0 8px;border-bottom:1px solid rgba(0,0,0,.06)}
+#arResult{display:flex;flex-direction:column;gap:10px;margin-top:4px;color:var(--text,#12483d)}
+#arResult .ar-result-toolbar{position:sticky;top:0;z-index:3;background:var(--card,#fff);padding:6px 0 8px;border-bottom:1px solid var(--border-light,#dceee0);color:var(--text,#12483d)}
 #arResult .ar-summary{flex-shrink:0}
+#arResult .ar-summary-card{background:var(--primary-soft,#e5f3e8)!important;border:1px solid var(--border,#b9ddc2)!important;border-radius:10px;padding:10px 12px;color:var(--text,#12483d)}
+#arResult .ar-summary-card span{color:var(--text-soft,#617d70)!important}
+#arResult .ar-summary-card b{color:var(--primary-dark,#075c4d)!important}
 #arResult .ar-table-scroll{
   max-height:min(52vh, 480px);
   overflow:auto;
-  border:1px solid #c9d5ce;
-  border-radius:8px;
-  background:#fff;
+  border:1px solid var(--border,#b9ddc2);
+  border-radius:10px;
+  background:var(--card,#fff);
+  color:var(--text,#12483d);
   -webkit-overflow-scrolling:touch;
 }
-#arResult .ar-report-table{margin:0;width:100%;border-collapse:separate;border-spacing:0}
+#arResult .ar-report-table{margin:0;width:100%;border-collapse:separate;border-spacing:0;color:var(--text,#12483d)}
 #arResult .ar-report-table thead th{
   position:sticky;top:0;z-index:2;
-  background:#e8f3ed;
-  box-shadow:0 1px 0 #aebbb4;
+  background:var(--primary-soft,#e5f3e8)!important;
+  color:var(--primary-dark,#075c4d)!important;
+  box-shadow:0 1px 0 var(--border,#b9ddc2);
 }
-#arResult .ar-report-table th,#arResult .ar-report-table td{padding:7px 6px}
+#arResult .ar-report-table th,#arResult .ar-report-table td{
+  padding:8px 7px;
+  color:var(--text,#12483d)!important;
+  border-bottom:1px solid var(--border-light,#dceee0);
+  background:transparent;
+}
+#arResult .ar-report-table tbody tr:nth-child(even) td{background:var(--bg2,#edf7ef)}
+#arResult .hint{color:var(--text-soft,#617d70)!important}
 @media (max-width:640px){
   #arResult .ar-table-scroll{max-height:min(48vh, 380px)}
 }
@@ -609,17 +621,35 @@ function renderReport():void{
     else if(type==='purchase_detail'||type==='sale_detail'){
       const isSale=type==='sale_detail';
       const types=isSale?['sale','return-sale']:['purchase','return-purchase'];
+      const productId=selectedProduct();
       const invs=reportInvoices(r, types);
       const invRows:string[][]=[];
       const lineRows:string[][]=[];
-      let sumNet=0,sumTax=0,sumGross=0,sumLines=0;
+      let sumNet=0,sumTax=0,sumGross=0,sumLines=0,matchedInvoices=0;
       for(const inv of invs){
         const p=commerce.parties.find(x=>x.id===inv.partyId);
         const sign=inv.type.startsWith('return')?-1:1;
-        sumNet+=sign*inv.netRial; sumTax+=sign*inv.taxRial; sumGross+=sign*inv.grossRial;
-        invRows.push([esc(inv.date),esc(inv.number),invTypeLabel(inv.type),esc(p?.name||'—'),money(inv.netRial),money(inv.taxRial),money(inv.grossRial)]);
-        for(const line of inv.lines||[]){
-          if(selectedProduct() && line.productId!==selectedProduct()) continue;
+        // اگر کالا انتخاب شده، فقط اقلام همان کالا و فقط فاکتورهایی که حداقل یک قلم منطبق دارند
+        const matchedLines=(inv.lines||[]).filter(line=>!productId||line.productId===productId);
+        if(productId && matchedLines.length===0) continue;
+        matchedInvoices++;
+        // با فیلتر کالا، جمع فاکتور از روی اقلام منطبق حساب می‌شود (نه کل فاکتور)
+        let invNet=0, invTax=0, invGross=0;
+        if(productId){
+          for(const line of matchedLines){
+            const lineTotal=lineAmountRial(line);
+            invNet+=lineTotal;
+          }
+          // مالیات متناسب تقریبی بر اساس سهم خالص از فاکتور
+          const ratio=inv.netRial>0?invNet/inv.netRial:0;
+          invTax=Math.round((inv.taxRial||0)*ratio);
+          invGross=invNet+invTax;
+        }else{
+          invNet=inv.netRial; invTax=inv.taxRial; invGross=inv.grossRial;
+        }
+        sumNet+=sign*invNet; sumTax+=sign*invTax; sumGross+=sign*invGross;
+        invRows.push([esc(inv.date),esc(inv.number),invTypeLabel(inv.type),esc(p?.name||'—'),money(invNet),money(invTax),money(invGross)]);
+        for(const line of matchedLines){
           const qty=(line.quantityMilli||0)/1000;
           const lineTotal=lineAmountRial(line);
           sumLines+=sign*lineTotal;
@@ -630,7 +660,7 @@ function renderReport():void{
         }
       }
       host.innerHTML=reportHead([
-        ['تعداد فاکتور',fa(invs.length)],
+        ['تعداد فاکتور',fa(matchedInvoices)],
         ['خالص',money(sumNet)],
         ['مالیات',money(sumTax)],
         ['مبلغ نهایی',money(sumGross)],
@@ -848,29 +878,38 @@ function bindResultSearch(): void {
 function exportCsv():void{
   const host=el<HTMLDivElement>('#arResult');
   if(!host)return;
-  const tableEl=host.querySelector('table');
-  if(!tableEl || !tableEl.querySelector('tbody tr')){
+  const tables=[...host.querySelectorAll('table')];
+  if(!tables.length){
     toast('ابتدا گزارش را تهیه کنید','error');
     return;
   }
-  const rows=[...tableEl.querySelectorAll('tr')].map(tr=>
-    [...tr.querySelectorAll('th,td')].map(td=>'"'+(td.textContent||'').replace(/"/g,'""')+'"').join(',')
-  );
-  if(rows.length===0){
+  // همه جدول‌های نتیجهٔ فعلی (نه فقط جدول اول) + فقط ردیف‌های قابل‌نمایش
+  const blocks:string[]=[];
+  for(const tableEl of tables){
+    const rows=[...tableEl.querySelectorAll('tr')].filter(tr=>{
+      const d=(tr as HTMLElement).style?.display;
+      return d!=='none';
+    }).map(tr=>
+      [...tr.querySelectorAll('th,td')].map(td=>'"'+(td.textContent||'').replace(/"/g,'""')+'"').join(',')
+    );
+    if(rows.length) blocks.push(rows.join('\r\n'));
+  }
+  if(!blocks.length){
     toast('داده‌ای برای خروجی وجود ندارد','error');
     return;
   }
   const title=reportTitle(activeReportId||'report');
   const filename=`anbarin-${activeReportId||'report'}-${dateStr()}.csv`;
-  downloadFile('\ufeff'+rows.join('\r\n'), filename, 'text/csv;charset=utf-8');
+  downloadFile('\ufeff'+blocks.join('\r\n\r\n'), filename, 'text/csv;charset=utf-8');
   toast(`خروجی «${title}» آماده شد`,'success');
 }
 
 function buildPrintHtml():string|null{
   const host=el<HTMLDivElement>('#arResult');
   if(!host)return null;
-  const tableEl=host.querySelector('table');
-  if(!tableEl){
+  // فقط نتیجهٔ فعلی گزارش — همه جدول‌ها و عنوان‌ها، نه فقط جدول اول
+  const tables=[...host.querySelectorAll('table')];
+  if(!tables.length && !host.querySelector('.ar-summary')){
     toast('ابتدا گزارش را تهیه کنید','error');
     return null;
   }
@@ -884,9 +923,19 @@ function buildPrintHtml():string|null{
   const from=el<HTMLInputElement>('#arFrom')?.value?.trim();
   const to=el<HTMLInputElement>('#arTo')?.value?.trim();
   if(from||to)metaParts.push(`بازه: ${from||'—'} تا ${to||'—'}`);
-  const summary=host.querySelector('.ar-summary, .report-head, .report-summary, .kpi-row, .summary-row');
-  const summaryHtml=summary?summary.outerHTML:'';
-  const tableHtml=tableEl.outerHTML;
+  const partySel=el<HTMLSelectElement>('#arParty');
+  if(partySel?.value){const o=partySel.selectedOptions[0]; if(o)metaParts.push(`طرف حساب: ${o.textContent||''}`);}
+  const productSel=el<HTMLSelectElement>('#arProduct');
+  if(productSel?.value){const o=productSel.selectedOptions[0]; if(o)metaParts.push(`کالا: ${o.textContent||''}`);}
+
+  // کل محتوای نتیجهٔ فعلی (خلاصه + عنوان‌ها + همه جدول‌ها) — ردیف‌های مخفی جستجو حذف شوند
+  const clone=host.cloneNode(true) as HTMLElement;
+  clone.querySelector('.ar-result-toolbar')?.remove();
+  clone.querySelectorAll('tr').forEach(tr=>{
+    const style=(tr as HTMLElement).style?.display;
+    if(style==='none') tr.remove();
+  });
+  const bodyContent=clone.innerHTML;
   return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} — انبارین پرو</title><style>
 @page{size:A4 landscape;margin:10mm}
 *{box-sizing:border-box}
@@ -912,8 +961,7 @@ tbody tr:nth-child(even){background:#f7faf8}
 <h1>${esc(title)} — انبارین پرو</h1>
 <div class="meta">${esc(metaParts.join(' | ')||'بدون فیلتر خاص')}<br>تاریخ تهیه: ${esc(new Date().toLocaleString('fa-IR'))}</div>
 <p class="hint">گزارش فقط‌خواندنی از اسناد و فاکتورهای قطعی؛ داده عملیاتی تغییر نمی‌کند.</p>
-${summaryHtml}
-${tableHtml}
+${bodyContent}
 <div class="footer">انبارین پرو · گزارش حسابداری</div>
 </body></html>`;
 }
@@ -926,6 +974,41 @@ function printReport():void{
     onSuccess: () => toast('پنجره چاپ باز شد؛ پس از اتمام به همین گزارش برمی‌گردید', 'success'),
     onError: () => toast('باز کردن چاپ ناموفق بود؛ دوباره تلاش کنید', 'error'),
   });
+}
+
+/** اشتراک همان نتیجهٔ فعلی گزارش (نه گزارش قبلی) */
+async function shareReport():Promise<void>{
+  const html=buildPrintHtml();
+  if(!html)return;
+  const title=reportTitle(activeReportId||'report');
+  const safe=(activeReportId||'report').replace(/[^\w\u0600-\u06FF-]+/g,'_');
+  const fileName=`anbarin-report-${safe}-${dateStr()}.html`;
+  const mime='text/html;charset=utf-8';
+  const shareResult=await shareFileContent(html,fileName,mime,{
+    title: `${title} — انبارین پرو`,
+    text: `گزارش ${title}`,
+  });
+  if(shareResult==='shared'){
+    toast('گزارش آماده ارسال است؛ پیام‌رسان یا Drive را انتخاب کنید','success');
+    return;
+  }
+  if(shareResult==='cancelled')return;
+  // اگر اشتراک در دسترس نبود، ذخیره به‌عنوان جایگزین
+  const saved=await downloadFile(html,fileName,mime);
+  if(saved==='saved') toast('اشتراک در دسترس نبود؛ فایل گزارش ذخیره شد','success');
+  else if(saved!=='cancelled') toast('اشتراک‌گذاری در این دستگاه پشتیبانی نشد','error');
+}
+
+/** ذخیره همان نتیجهٔ فعلی گزارش روی دستگاه */
+async function saveReport():Promise<void>{
+  const html=buildPrintHtml();
+  if(!html)return;
+  const title=reportTitle(activeReportId||'report');
+  const safe=(activeReportId||'report').replace(/[^\w\u0600-\u06FF-]+/g,'_');
+  const fileName=`anbarin-report-${safe}-${dateStr()}.html`;
+  const saved=await downloadFile(html,fileName,'text/html;charset=utf-8');
+  if(saved==='saved') toast(`گزارش «${title}» ذخیره شد`,'success');
+  else if(saved!=='cancelled') toast('ذخیره گزارش ناموفق بود','error');
 }
 
 const REPORT_CATALOG: Array<{group:string;items:Array<{id:string;title:string;desc:string}>}> = [
@@ -983,6 +1066,8 @@ function bindReportRunner():void{
   });
   el<HTMLButtonElement>('#arCsv')?.addEventListener('click',exportCsv);
   el<HTMLButtonElement>('#arPrint')?.addEventListener('click',printReport);
+  el<HTMLButtonElement>('#arShare')?.addEventListener('click',()=>{void shareReport();});
+  el<HTMLButtonElement>('#arSave')?.addEventListener('click',()=>{void saveReport();});
   el<HTMLSelectElement>('#arAccount')?.addEventListener('change',()=>{if(activeReportId==='ledger')renderReport();});
   ['#arParty','#arProduct','#arMethod','#arFilterAccount','#arWarehouse'].forEach(q=>el<HTMLSelectElement>(q)?.addEventListener('change',renderReport));
   el<HTMLButtonElement>('#arBackCatalog')?.addEventListener('click',()=>{activeReportId=null;renderReportsCatalog();});
@@ -1025,7 +1110,9 @@ function renderReportRunner(reportId:string):void{
     <div class="actions" style="margin:10px 0;display:flex;flex-wrap:wrap;gap:8px">
       <button type="button" class="btn btn-primary" id="arRun">تهیه گزارش</button>
       <button type="button" class="btn btn-secondary" id="arCsv">خروجی CSV / Excel</button>
-      <button type="button" class="btn btn-secondary" id="arPrint">چاپ / ذخیره PDF</button>
+      <button type="button" class="btn btn-secondary" id="arPrint">چاپ / PDF</button>
+      <button type="button" class="btn btn-secondary" id="arShare">اشتراک‌گذاری</button>
+      <button type="button" class="btn btn-secondary" id="arSave">ذخیره</button>
     </div>
     <div id="arResult" class="ar-result-panel"><p class="hint">بازه و فیلترها را مشخص کنید و «تهیه گزارش» را بزنید. نتایج در کادر اسکرول‌شونده نمایش داده می‌شوند تا صفحه طولانی نشود.</p></div>
   </div>`;

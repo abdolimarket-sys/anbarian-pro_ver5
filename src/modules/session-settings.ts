@@ -183,13 +183,16 @@ export function fillSettingsForm(): void {
   fillText('setBusinessEconomicCode', settings.businessEconomicCode);
   fillText('setBusinessPostalCode', settings.businessPostalCode);
   const logoPrev = document.getElementById('setBusinessLogoPreview') as HTMLImageElement | null;
+  const logoPh = document.getElementById('setBusinessLogoPlaceholder');
   if (logoPrev) {
     if (settings.businessLogoDataUrl) {
       logoPrev.src = settings.businessLogoDataUrl;
       logoPrev.style.display = 'block';
+      if (logoPh) logoPh.style.display = 'none';
     } else {
       logoPrev.removeAttribute('src');
       logoPrev.style.display = 'none';
+      if (logoPh) logoPh.style.display = '';
     }
   }
 
@@ -227,6 +230,8 @@ export function bindBusinessLogoControls(): void {
           preview.src = dataUrl;
           preview.style.display = 'block';
         }
+        const ph = document.getElementById('setBusinessLogoPlaceholder');
+        if (ph) ph.style.display = 'none';
         toast('لوگو انتخاب شد؛ برای ثبت نهایی «ذخیره تنظیمات» را بزنید', 'info');
       };
       reader.readAsDataURL(file);
@@ -241,6 +246,8 @@ export function bindBusinessLogoControls(): void {
         preview.removeAttribute('src');
         preview.style.display = 'none';
       }
+      const ph = document.getElementById('setBusinessLogoPlaceholder');
+      if (ph) ph.style.display = '';
       toast('لوگو حذف شد؛ ذخیره تنظیمات را بزنید', 'info');
     });
   }

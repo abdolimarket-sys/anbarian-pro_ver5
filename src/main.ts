@@ -610,26 +610,36 @@ function renderShell() {
             <label class="field" style="display:block;margin-top:8px">نشانی
               <input id="setBusinessAddress" class="search-input" placeholder="آدرس کامل فروشگاه" />
             </label>
-            <label class="field" style="display:block;margin-top:8px">لوگو (PNG/JPG، ترجیحاً زیر ۲۰۰KB)
-              <input id="setBusinessLogo" type="file" accept="image/png,image/jpeg,image/webp,image/*" style="margin-top:4px;width:100%" />
-            </label>
-            <div style="display:flex;align-items:center;gap:12px;margin-top:8px;flex-wrap:wrap">
-              <img id="setBusinessLogoPreview" alt="پیش‌نمایش لوگو" style="max-height:56px;max-width:120px;display:none;border:1px solid var(--border);border-radius:8px;padding:4px;background:var(--card)" />
-              <button type="button" class="btn btn-secondary btn-sm" id="btnClearBusinessLogo">حذف لوگو</button>
+            <div class="logo-picker-card" style="margin-top:10px">
+              <div class="logo-picker-head">
+                <strong>لوگوی فروشگاه</strong>
+                <span class="hint">PNG / JPG / WebP — ترجیحاً زیر ۲۰۰KB</span>
+              </div>
+              <div class="logo-picker-body">
+                <div class="logo-picker-preview-wrap">
+                  <img id="setBusinessLogoPreview" class="logo-picker-preview" alt="پیش‌نمایش لوگو" style="display:none" />
+                  <span class="logo-picker-placeholder" id="setBusinessLogoPlaceholder">بدون لوگو</span>
+                </div>
+                <div class="logo-picker-actions">
+                  <label class="btn btn-primary btn-sm logo-picker-file-btn" for="setBusinessLogo">انتخاب لوگو</label>
+                  <input id="setBusinessLogo" type="file" accept="image/png,image/jpeg,image/webp,image/*" hidden />
+                  <button type="button" class="btn btn-secondary btn-sm" id="btnClearBusinessLogo">حذف لوگو</button>
+                </div>
+              </div>
             </div>
           </div>
 
 
-          <div class="card" style="margin-top:14px;padding:12px;border:1px solid var(--border);background:var(--primary-soft);border-radius:var(--radius-sm)">
+          <div class="card auto-backup-card" style="margin-top:14px;padding:12px;border:1px solid var(--border);background:var(--primary-soft);border-radius:var(--radius-sm)">
             <h3 style="margin:0 0 6px;font-size:1rem">پشتیبان خودکار و آنلاین</h3>
             <p class="hint" style="margin:0 0 8px"><b>Google Drive:</b> روی «ورود Google Drive» بزنید. اگر ورود مستقیم حساب ممکن باشد بدون انتخاب پوشه وصل می‌شود؛ در غیر این صورت یک‌بار پوشه Drive را انتخاب می‌کنید و بعدش خودکار ادامه می‌یابد. بدون اتصال، پشتیبان محلی فعال است.</p>
-            <p class="hint" id="autoBackupLocationLabel" style="margin:0 0 10px">وضعیت: —</p>
-            <div class="actions report-actions-grid" style="margin:0">
-              <button type="button" class="btn btn-primary btn-sm" id="btnConnectGoogleDriveAccount">ورود Google Drive</button>
-              <button type="button" class="btn btn-secondary btn-sm" id="btnDisconnectGoogleDriveAccount">قطع Drive</button>
-              <button type="button" class="btn btn-secondary btn-sm" id="btnPickAutoBackupFolder">پوشه محلی</button>
-              <button type="button" class="btn btn-secondary btn-sm" id="btnResetAutoBackupFolder">پیش‌فرض محلی</button>
-              <button type="button" class="btn btn-secondary btn-sm" id="btnRunAutoBackupNow">پشتیبان همین حالا</button>
+            <p class="hint auto-backup-status" id="autoBackupLocationLabel" style="margin:0 0 10px">وضعیت: —</p>
+            <div class="auto-backup-actions" role="group" aria-label="گزینه‌های پشتیبان">
+              <button type="button" class="btn btn-sm auto-backup-btn" id="btnConnectGoogleDriveAccount" data-backup-role="drive-connect">ورود Google Drive</button>
+              <button type="button" class="btn btn-sm auto-backup-btn" id="btnDisconnectGoogleDriveAccount" data-backup-role="drive-disconnect">قطع Drive</button>
+              <button type="button" class="btn btn-sm auto-backup-btn" id="btnPickAutoBackupFolder" data-backup-role="local-pick">پوشه محلی</button>
+              <button type="button" class="btn btn-sm auto-backup-btn" id="btnResetAutoBackupFolder" data-backup-role="local-default">پیش‌فرض محلی</button>
+              <button type="button" class="btn btn-sm auto-backup-btn auto-backup-btn-run" id="btnRunAutoBackupNow" data-backup-role="run-now">پشتیبان همین حالا</button>
             </div>
           </div>
 
@@ -640,9 +650,9 @@ function renderShell() {
           </div>
         </div>
 
-        <div class="card" style="margin-top:12px">
+        <div class="card license-settings-card" style="margin-top:12px">
           <h2>لایسنس</h2>
-          <p class="hint" id="licenseDetail">—</p>
+          <p class="hint license-status-box" id="licenseDetail">—</p>
           <label class="field" style="margin-top:8px;display:block">
             <span style="font-size:.82rem;font-weight:700;color:var(--text-soft)">شناسه دستگاه</span>
             <input id="deviceIdDisplay" readonly style="width:100%;margin-top:4px;direction:ltr;text-align:left;font-family:monospace;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text)" />
@@ -655,11 +665,11 @@ function renderShell() {
             <span style="font-size:.82rem;font-weight:700;color:var(--text-soft)">فایل لایسنس امضاشده (.anblic)</span>
             <input id="offlineLicenseFile" type="file" accept=".anblic,.json,application/json" style="width:100%;margin-top:4px" />
           </label>
-          <div class="actions" style="margin-top:10px">
-            <button class="btn btn-primary btn-block" id="btnActivateOfflineLicense">فعال‌سازی فایل لایسنس</button>
-            <button class="btn btn-primary btn-block" id="btnActivateLicense">فعال‌سازی کلید قدیمی</button>
-            <button class="btn btn-secondary btn-block" id="btnDeactivateLicense">حذف لایسنس</button>
-            <button class="btn btn-secondary btn-block" id="btnCopyDeviceId">کپی شناسه دستگاه</button>
+          <div class="auto-backup-actions" style="margin-top:10px">
+            <button type="button" class="btn btn-sm auto-backup-btn" id="btnActivateOfflineLicense" data-license-role="activate-file">فعال‌سازی فایل لایسنس</button>
+            <button type="button" class="btn btn-sm auto-backup-btn" id="btnActivateLicense" data-license-role="activate-key">فعال‌سازی کلید قدیمی</button>
+            <button type="button" class="btn btn-sm auto-backup-btn" id="btnDeactivateLicense" data-license-role="deactivate">حذف لایسنس</button>
+            <button type="button" class="btn btn-sm auto-backup-btn" id="btnCopyDeviceId" data-license-role="copy-id">کپی شناسه دستگاه</button>
           </div>
         </div>
 
@@ -685,28 +695,32 @@ function renderShell() {
           </label>
           <div class="card" style="margin-top:12px;padding:12px;background:var(--bg)">
             <h3 style="margin:0 0 8px">انتخاب روش همگام‌سازی تیمی</h3>
-            <label class="field" style="display:block;margin-top:8px"><span>روش کار</span>
-              <select id="teamSyncMode" style="width:100%">
-                <option value="offline">آفلاین — انتقال با فایل JSON</option>
-                <option value="live">آنلاین زنده — همگام‌سازی خودکار</option>
-                <option value="hybrid">ترکیبی — آنلاین خودکار + ابزار آفلاین</option>
-              </select>
-            </label>
+            <span class="settlement-method-label" style="margin-top:6px">روش کار</span>
+            <div class="auto-backup-actions team-sync-mode-chips" role="radiogroup" aria-label="روش همگام‌سازی" style="margin:6px 0 10px">
+              <button type="button" class="btn btn-sm auto-backup-btn" data-team-mode="offline" aria-pressed="false">آفلاین</button>
+              <button type="button" class="btn btn-sm auto-backup-btn" data-team-mode="live" aria-pressed="false">آنلاین زنده</button>
+              <button type="button" class="btn btn-sm auto-backup-btn" data-team-mode="hybrid" aria-pressed="false">ترکیبی</button>
+            </div>
+            <select id="teamSyncMode" hidden aria-hidden="true">
+              <option value="offline">آفلاین — انتقال با فایل JSON</option>
+              <option value="live">آنلاین زنده — همگام‌سازی خودکار</option>
+              <option value="hybrid">ترکیبی — آنلاین خودکار + ابزار آفلاین</option>
+            </select>
             <p class="hint">حالت آنلاین زنده در این نسخه با بررسی خودکار دوره‌ای Firebase کار می‌کند، نه WebSocket/Supabase. در حالت ترکیبی، فایل‌های JSON هم برای انتقال دستی در دسترس می‌مانند. در قطع اینترنت، شمارش محلی حفظ می‌شود.</p>
             <label class="field" style="display:block;margin-top:8px"><span>نشانی پایگاه داده آنلاین</span><input id="teamOnlineUrl" type="url" placeholder="https://your-project-default-rtdb.firebaseio.com" style="width:100%;direction:ltr;text-align:left" /></label>
             <label class="field" style="display:block;margin-top:8px"><span>توکن دسترسی (در صورت نیاز)</span><input id="teamOnlineToken" type="password" placeholder="اختیاری؛ مطابق تنظیمات پایگاه داده" style="width:100%;direction:ltr;text-align:left" autocomplete="off" /></label>
-            <div class="actions" style="margin-top:8px">
-              <button class="btn btn-secondary btn-block" id="btnSaveTeamOnline">ذخیره تنظیمات آنلاین</button>
-              <button class="btn btn-primary btn-block" id="btnSyncTeamOnline">همگام‌سازی آنلاین اکنون</button>
+            <div class="auto-backup-actions" style="margin-top:8px">
+              <button type="button" class="btn btn-sm auto-backup-btn" id="btnSaveTeamOnline" data-team-action="save-online">ذخیره تنظیمات آنلاین</button>
+              <button type="button" class="btn btn-sm auto-backup-btn auto-backup-btn-run" id="btnSyncTeamOnline" data-team-action="sync-now">همگام‌سازی آنلاین اکنون</button>
             </div>
-            <p class="hint" id="teamOnlineStatus" role="status" aria-live="polite">همگام‌سازی آنلاین تنظیم نشده است.</p>
+            <p class="hint auto-backup-status" id="teamOnlineStatus" role="status" aria-live="polite">همگام‌سازی آنلاین تنظیم نشده است.</p>
           </div>
-          <div class="actions" style="margin-top:12px">
-            <button class="btn btn-primary btn-block" id="btnExportTeam">📤 ارسال بسته همگام‌سازی</button>
-            <button class="btn btn-secondary btn-block" id="btnImportTeam">📥 دریافت و ادغام بسته</button>
+          <div class="auto-backup-actions" style="margin-top:12px">
+            <button type="button" class="btn btn-sm auto-backup-btn" id="btnExportTeam" data-team-action="export-pack">📤 ارسال بسته همگام‌سازی</button>
+            <button type="button" class="btn btn-sm auto-backup-btn" id="btnImportTeam" data-team-action="import-pack">📥 دریافت و ادغام بسته</button>
             <input type="file" id="teamSyncFile" accept=".json" style="display:none" />
-            <button class="btn btn-secondary btn-block" id="btnExportPartial">📤 خروجی شمارش این دستگاه</button>
-            <button class="btn btn-secondary btn-block" id="btnExportMergeReport">📄 گزارش آخرین ادغام</button>
+            <button type="button" class="btn btn-sm auto-backup-btn" id="btnExportPartial" data-team-action="export-partial">📤 خروجی شمارش این دستگاه</button>
+            <button type="button" class="btn btn-sm auto-backup-btn" id="btnExportMergeReport" data-team-action="export-report">📄 گزارش آخرین ادغام</button>
           </div>
         </div>
 
@@ -836,11 +850,39 @@ function bindEvents() {
   bindBusinessLogoControls();
   const refreshBackupLoc = async () => {
     const el = document.getElementById('autoBackupLocationLabel');
+    const setActive = (role: string | null) => {
+      document.querySelectorAll<HTMLElement>('.auto-backup-btn[data-backup-role]').forEach((btn) => {
+        const r = btn.dataset.backupRole || '';
+        const isRun = r === 'run-now';
+        const isDisconnect = r === 'drive-disconnect';
+        let on = false;
+        if (role === 'drive' && r === 'drive-connect') on = true;
+        if (role === 'custom' && r === 'local-pick') on = true;
+        if (role === 'default' && r === 'local-default') on = true;
+        // قطع Drive فقط وقتی Drive وصل است برجسته می‌شود (قابل اقدام)
+        if (role === 'drive' && isDisconnect) {
+          btn.classList.remove('is-active');
+          btn.classList.add('is-available');
+          btn.removeAttribute('aria-pressed');
+          return;
+        }
+        if (isRun) {
+          btn.classList.remove('is-active');
+          btn.classList.add('is-available');
+          btn.removeAttribute('aria-pressed');
+          return;
+        }
+        btn.classList.toggle('is-active', on);
+        btn.classList.toggle('is-available', !on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    };
     if (!el) return;
     try {
       const drive = await getGoogleDriveAccountStatus();
       if (drive.connected) {
         el.textContent = `Google Drive خودکار: وصل (${drive.email || 'حساب گوگل'}) · پوشه AnbarinBackups`;
+        setActive('drive');
         return;
       }
       const s = await getAutoBackupLocationStatus();
@@ -849,8 +891,10 @@ function bindEvents() {
         : s.mode === 'custom'
           ? `مسیر محلی/انتخابی: ${s.label}`
           : `مسیر پیش‌فرض محلی: ${s.label}`;
+      setActive(s.mode === 'custom' ? 'custom' : 'default');
     } catch {
       el.textContent = 'مسیر فعلی: Documents/AnbarinBackups';
+      setActive('default');
     }
   };
   void refreshBackupLoc();
@@ -1156,10 +1200,33 @@ function bindEvents() {
   });
 
   // Team sync: keep offline JSON tools and let the user choose offline, live, or hybrid.
+  const syncModeSelect = document.getElementById('teamSyncMode') as HTMLSelectElement | null;
+  const paintTeamModeChips = () => {
+    const mode = syncModeSelect?.value || 'offline';
+    document.querySelectorAll<HTMLElement>('[data-team-mode]').forEach((btn) => {
+      const on = btn.dataset.teamMode === mode;
+      btn.classList.toggle('is-active', on);
+      btn.classList.toggle('is-available', !on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  };
+  document.querySelectorAll<HTMLElement>('[data-team-mode]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!syncModeSelect) return;
+      const mode = btn.dataset.teamMode || 'offline';
+      syncModeSelect.value = mode;
+      saveTeamSyncMode();
+      refreshTeamOnlineStatus();
+      initializeTeamOnlineSync();
+      paintTeamModeChips();
+    });
+  });
+  paintTeamModeChips();
   document.getElementById('teamSyncMode')?.addEventListener('change', () => {
     saveTeamSyncMode();
     refreshTeamOnlineStatus();
     initializeTeamOnlineSync();
+    paintTeamModeChips();
   });
   document.getElementById('btnSaveTeamOnline')?.addEventListener('click', () => {
     saveTeamOnlineConfig();
