@@ -62,16 +62,79 @@ async function withCommerceMutationLock<T>(work: () => Promise<T>): Promise<T> {
   try { return await work(); } finally { release(); }
 }
 
+export const DEFAULT_CUSTOMER_PARTY_ID = 'party_default_customer';
+export const DEFAULT_SUPPLIER_PARTY_ID = 'party_default_supplier';
+
 export function emptyCommerceData(): CommerceData { return { schemaVersion: 1, parties: [], invoices: [], cashTransactions: [] }; }
+
+/** اطمینان از وجود طرف‌حساب‌های پیش‌فرض (خریدار / فروشنده) */
+export function ensureDefaultParties(data: CommerceData): CommerceData {
+  const parties = [...(data.parties || [])];
+  let changed = false;
+  const stamp = now();
+  if (!parties.some(p => p.id === DEFAULT_CUSTOMER_PARTY_ID)) {
+    parties.unshift({
+      id: DEFAULT_CUSTOMER_PARTY_ID,
+      type: 'customer',
+      name: 'خریدار پیش‌فرض',
+      nationalId: '',
+      phone: '',
+      address: '',
+      isActive: true,
+      createdAt: stamp,
+      updatedAt: stamp,
+    });
+    changed = true;
+  }
+  if (!parties.some(p => p.id === DEFAULT_SUPPLIER_PARTY_ID)) {
+    parties.unshift({
+      id: DEFAULT_SUPPLIER_PARTY_ID,
+      type: 'supplier',
+      name: 'فروشنده پیش‌فرض',
+      nationalId: '',
+      phone: '',
+      address: '',
+      isActive: true,
+      createdAt: stamp,
+      updatedAt: stamp,
+    });
+    changed = true;
+  }
+  return changed ? { ...data, parties } : data;
+}
+
+
+export function checkDefaultPartyPolicy(type: InvoiceType, partyId: string, settings: { allowDefaultCustomerSales?: boolean; allowDefaultSupplierPurchases?: boolean }): void {
+  if (isSaleInvoiceType(type) && partyId === DEFAULT_CUSTOMER_PARTY_ID && settings.allowDefaultCustomerSales === false) {
+    throw new Error('فروش به «خریدار پیش‌فرض» در تنظیمات حسابداری غیرفعال است.');
+  }
+  if (isPurchaseInvoiceType(type) && partyId === DEFAULT_SUPPLIER_PARTY_ID && settings.allowDefaultSupplierPurchases === false) {
+    throw new Error('خرید از «فروشنده پیش‌فرض» در تنظیمات حسابداری غیرفعال است.');
+  }
+}
+
+export async function assertDefaultPartyAllowed(type: InvoiceType, partyId: string): Promise<void> {
+  const acc = await loadAccountingData();
+  checkDefaultPartyPolicy(type, partyId, acc.settings);
+}
+
 function validCommerceData(v: unknown): v is CommerceData {
   if (!v || typeof v !== 'object') return false;
   const x = v as Partial<CommerceData>;
   return x.schemaVersion === 1 && Array.isArray(x.parties) && Array.isArray(x.invoices) && Array.isArray(x.cashTransactions);
 }
 export async function loadCommerceData(): Promise<CommerceData> {
-  try { const v = await idbGet<unknown>(KEY); if (validCommerceData(v)) return v; } catch (e) { console.warn('commerce read failed', e); }
-  try { const v = await idbGet<unknown>(BACKUP); if (validCommerceData(v)) return v; } catch (e) { console.warn('commerce backup read failed', e); }
-  return emptyCommerceData();
+  let data: CommerceData | null = null;
+  try { const v = await idbGet<unknown>(KEY); if (validCommerceData(v)) data = v; } catch (e) { console.warn('commerce read failed', e); }
+  if (!data) {
+    try { const v = await idbGet<unknown>(BACKUP); if (validCommerceData(v)) data = v; } catch (e) { console.warn('commerce backup read failed', e); }
+  }
+  if (!data) data = emptyCommerceData();
+  const withDefaults = ensureDefaultParties(data);
+  if (withDefaults !== data) {
+    try { await saveCommerceData(withDefaults); } catch (e) { console.warn('persist default parties failed', e); }
+  }
+  return withDefaults;
 }
 export async function saveCommerceData(v: CommerceData): Promise<void> {
   if (!validCommerceData(v)) throw new Error('ساختار اطلاعات فاکتور و دریافت‌وپرداخت معتبر نیست.');
@@ -419,6 +482,7 @@ async function postInvoiceExclusive(invoiceId: string, commerce: CommerceData): 
   let accounting=await ensureCommerceAccounts();
   validateDateAndPeriod(invoice.date,invoice.fiscalPeriodId,accounting);
   const party=activeCommerce.parties.find(p=>p.id===invoice.partyId && p.isActive); if(!party) throw new Error('طرف حساب فاکتور غیرفعال یا حذف شده است.');
+  await assertDefaultPartyAllowed(invoice.type, invoice.partyId);
   const ar='det-customers', ap='det-suppliers', sales='det-sales-goods', inventory='det-inventory', cogs='det-cogs-goods', purchases='det-purchases', inputTax='det-input-tax', outputTax='det-output-tax';
   const stockLines=invoice.lines.filter(l=>l.productId);
   const saleSide=isSaleInvoiceType(invoice.type); const returnSide=isReturnInvoiceType(invoice.type);

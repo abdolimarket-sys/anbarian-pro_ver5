@@ -3146,3 +3146,125 @@ body > .invoice-jalali-calendar {
   border: 1px solid var(--border);
   color: var(--text) !important;
 }
+
+
+/* ——— مشخصات چک یک‌ستونه + کادرهای مبلغ/سررسید ——— */
+.settlement-cheque-stack {
+  display: flex !important;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--primary-soft);
+  direction: rtl;
+  text-align: right;
+}
+.settlement-cheque-stack[hidden],
+.settlement-cheque-stack[style*="display: none"] {
+  display: none !important;
+}
+.settlement-cheque-title {
+  font-weight: 800;
+  color: var(--primary-dark);
+  font-size: 0.92rem;
+  margin-bottom: 2px;
+}
+.settlement-field-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  text-align: right;
+}
+.settlement-field-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+.settlement-field-box input,
+.settlement-amount-field input,
+.settlement-credit-box input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  background: var(--card) !important;
+  color: var(--text) !important;
+  font: inherit;
+  font-weight: 600;
+  box-sizing: border-box;
+}
+.settlement-field-box input:focus,
+.settlement-amount-field input:focus,
+.settlement-credit-box input:focus {
+  outline: 2px solid var(--primary);
+  border-color: var(--primary) !important;
+}
+.settlement-credit-box {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: linear-gradient(180deg, var(--card) 0%, var(--primary-soft) 160%);
+}
+.settlement-stage-top {
+  grid-template-columns: minmax(200px, 1.6fr) minmax(160px, 1fr) auto !important;
+  align-items: end;
+}
+.settlement-amount-field {
+  width: 100%;
+}
+
+
+/* ——— نوار دکمه‌های گزارش حسابداری ——— */
+.ar-actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 10px;
+  margin: 12px 0 14px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--card) 0%, var(--primary-soft) 160%);
+}
+.ar-actions-secondary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  flex: 1 1 280px;
+  min-width: 0;
+}
+.ar-action-btn {
+  min-height: 42px;
+  margin: 0;
+  width: 100%;
+  font-weight: 700;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.ar-action-primary {
+  flex: 0 0 auto;
+  min-width: 140px;
+  padding-inline: 18px;
+  box-shadow: 0 2px 8px rgba(7, 92, 77, 0.22);
+}
+@media (max-width: 720px) {
+  .ar-actions-bar {
+    flex-direction: column;
+  }
+  .ar-action-primary {
+    width: 100%;
+  }
+  .ar-actions-secondary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 380px) {
+  .ar-actions-secondary {
+    grid-template-columns: 1fr;
+  }
+}

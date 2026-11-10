@@ -102,6 +102,10 @@ export interface AccountingSettings {
   salePriceUpdateMode: SalePriceUpdateMode;
   /** درصد سود روی قیمت خرید وقتی salePriceUpdateMode=markup (مثلاً ۲۵ یعنی ۲۵٪) */
   salePriceMarkupPercent: number;
+  /** فروش به «خریدار پیش‌فرض» مجاز باشد */
+  allowDefaultCustomerSales: boolean;
+  /** خرید از «فروشنده پیش‌فرض» مجاز باشد */
+  allowDefaultSupplierPurchases: boolean;
 }
 
 export interface AccountingData {
@@ -129,6 +133,8 @@ export const DEFAULT_ACCOUNTING_SETTINGS: AccountingSettings = {
   purchasePriceUpdateMode: 'last',
   salePriceUpdateMode: 'none',
   salePriceMarkupPercent: 0,
+  allowDefaultCustomerSales: true,
+  allowDefaultSupplierPurchases: true,
 };
 
 function normalizePurchasePriceMode(v: unknown): PurchasePriceUpdateMode {
@@ -158,6 +164,9 @@ export function normalizeAccountingSettings(
     purchasePriceUpdateMode: normalizePurchasePriceMode(src.purchasePriceUpdateMode),
     salePriceUpdateMode: normalizeSalePriceMode(src.salePriceUpdateMode),
     salePriceMarkupPercent: Number.isFinite(markup) ? Math.max(0, Math.min(1000, markup)) : 0,
+    // پیش‌فرض true برای سازگاری با نسخه‌های قبلی که این کلید را نداشتند
+    allowDefaultCustomerSales: src.allowDefaultCustomerSales !== false,
+    allowDefaultSupplierPurchases: src.allowDefaultSupplierPurchases !== false,
   };
 }
 

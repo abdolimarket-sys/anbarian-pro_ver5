@@ -11,7 +11,7 @@ import {
   storageBackend,
   session,
 } from './modules/state';
-import { toast, showPage, loadTheme } from './modules/ui';
+import { toast, showPage, loadTheme, bindThemeControls } from './modules/ui';
 import { findProductByCode } from './modules/state';
 import { initLocalAuth } from './modules/local-auth';
 import { initExternalAutoBackupScheduler, tryRecoverFromExternalBackup, getAutoBackupLocationStatus, pickAutoBackupFolder, clearAutoBackupFolder, writeExternalAutoBackup, getGoogleDriveAccountStatus, connectGoogleDriveAccount, disconnectGoogleDriveAccount } from './modules/device-auto-backup';
@@ -138,9 +138,11 @@ import {
   activateLicenseFromInput,
   deactivateLicense,
   requirePremium,
-  getDeviceId,
+  getDeviceId,,
+  saveStoredLicense
 } from './modules/license';
 import { activateOfflineLicenseFile } from './modules/offline-license';
+import { applyLicenseModuleUI, moduleForPage, requireModule, describeActiveModules } from './modules/license-modules';
 import {
   filterProductsAdvanced,
   setLocationFilter,
@@ -286,6 +288,7 @@ async function bootApp() {
 
     renderShell();
     initLocalAuth();
+    try { applyLicenseModuleUI(); } catch { /* ignore */ }
     initExternalAutoBackupScheduler();
     initScannerModule();
     await initAccountingUI();
@@ -563,6 +566,15 @@ function renderShell() {
         </div>
         <div class="card" style="margin-top:12px">
           <h2>تنظیمات</h2>
+          <div class="theme-pref-card" style="margin:10px 0 12px;padding:12px;border:1px solid var(--border);background:var(--primary-soft);border-radius:var(--radius-sm)">
+            <h3 style="margin:0 0 6px;font-size:1rem">ظاهر برنامه</h3>
+            <p class="hint" style="margin:0 0 8px">روشن، تاریک، یا خودکار مطابق تنظیمات گوشی</p>
+            <div class="auto-backup-actions" role="radiogroup" aria-label="تم ظاهر">
+              <button type="button" class="btn btn-sm auto-backup-btn" data-theme-pref="light" aria-pressed="false">روشن</button>
+              <button type="button" class="btn btn-sm auto-backup-btn" data-theme-pref="dark" aria-pressed="false">تاریک</button>
+              <button type="button" class="btn btn-sm auto-backup-btn" data-theme-pref="auto" aria-pressed="false">خودکار</button>
+            </div>
+          </div>
           <div class="settings-grid">
             <label class="set-row"><span>اسکن پیوسته</span><input type="checkbox" id="setContinuous" /></label>
             <label class="set-row"><span>پرش خودکار بعد از اسکن</span><input type="checkbox" id="setAutoNext" /></label>
@@ -663,11 +675,12 @@ function renderShell() {
           </label>
           <label class="field" style="margin-top:8px;display:block">
             <span style="font-size:.82rem;font-weight:700;color:var(--text-soft)">فایل لایسنس امضاشده (.anblic)</span>
+            <p class="hint" style="margin:0 0 6px">روش اصلی آفلاین: فایل امضاشده <code>.anblic</code> (RSA). کلید متنی فقط برای سازگاری است.</p>
             <input id="offlineLicenseFile" type="file" accept=".anblic,.json,application/json" style="width:100%;margin-top:4px" />
           </label>
           <div class="auto-backup-actions" style="margin-top:10px">
-            <button type="button" class="btn btn-sm auto-backup-btn" id="btnActivateOfflineLicense" data-license-role="activate-file">فعال‌سازی فایل لایسنس</button>
-            <button type="button" class="btn btn-sm auto-backup-btn" id="btnActivateLicense" data-license-role="activate-key">فعال‌سازی کلید قدیمی</button>
+            <button type="button" class="btn btn-sm auto-backup-btn" id="btnActivateOfflineLicense" data-license-role="activate-file">فعال‌سازی لایسنس آفلاین (فایل)</button>
+            <button type="button" class="btn btn-sm auto-backup-btn" id="btnActivateLicense" data-license-role="activate-key">فعال‌سازی کلید متنی (سازگاری)</button>
             <button type="button" class="btn btn-sm auto-backup-btn" id="btnDeactivateLicense" data-license-role="deactivate">حذف لایسنس</button>
             <button type="button" class="btn btn-sm auto-backup-btn" id="btnCopyDeviceId" data-license-role="copy-id">کپی شناسه دستگاه</button>
           </div>
@@ -848,6 +861,7 @@ function compactReportSections(): void {
 
 function bindEvents() {
   bindBusinessLogoControls();
+  bindThemeControls();
   const refreshBackupLoc = async () => {
     const el = document.getElementById('autoBackupLocationLabel');
     const setActive = (role: string | null) => {
@@ -1247,6 +1261,8 @@ function bindEvents() {
     if (!file) { toast('ابتدا فایل .anblic را انتخاب کنید', 'error'); return; }
     try {
       const license = await activateOfflineLicenseFile(file);
+      // یک منبع فعال: فایل RSA جایگزین کلید متنی ANB3 می‌شود
+      try { saveStoredLicense(null); } catch { /* ignore */ }
       toast('لایسنس آفلاین برای ' + license.customerName + ' فعال شد', 'success');
       updateLicenseUI();
     } catch (error) {
@@ -1361,6 +1377,8 @@ function bindEvents() {
     btn.addEventListener('click', () => {
       const page = (btn as HTMLElement).dataset.page;
       if (page) {
+        const mod = moduleForPage(page);
+        if (mod && !requireModule(mod)) return;
         showPage(page);
         requestAnimationFrame(() => {
           refreshLists();

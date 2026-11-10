@@ -11,8 +11,12 @@
 export type LicensePlanId = 'trial' | 'starter' | 'standard' | 'professional' | 'enterprise' | (string & {});
 export type LicenseStatus = 'active' | 'trial' | 'grace' | 'expired' | 'revoked' | 'suspended' | 'unactivated' | 'offline-unverified';
 export type LicenseFeature =
+  | 'module.count'
+  | 'module.accounting'
   | 'inventory.basic'
   | 'inventory.advanced'
+  | 'accounting.basic'
+  | 'accounting.advanced'
   | 'reports.basic'
   | 'reports.advanced'
   | 'import_export.advanced'
@@ -128,3 +132,73 @@ export function getCachedLeaseDisplayStatus(lease: LicenseLease, now = Date.now(
   }
   return lease.status === 'active' ? 'offline-unverified' : lease.status;
 }
+
+
+/** میان‌بر خواندن lease برای ماژول‌ها و UI */
+export function getCachedLicenseLease(): LicenseLease | null {
+  return readCachedLicenseLease()?.lease ?? null;
+}
+
+/**
+ * کلاینت لایسنس آنلاین (زیرساخت آینده).
+ * endpoint را با VITE_LICENSE_API_BASE تنظیم کنید؛ تا وقتی خالی است، فقط کش محلی خوانده می‌شود.
+ */
+export class OnlineLicenseClient {
+  constructor(private readonly baseUrl = String(import.meta.env.VITE_LICENSE_API_BASE || '').replace(/\/$/, '')) {}
+
+  get configured(): boolean {
+    return this.baseUrl.length > 0;
+  }
+
+  async activate(input: {
+    licenseKey: string;
+    deviceId: string;
+    deviceLabel?: string;
+    platform?: LicenseDevice['platform'];
+  }): Promise<LicenseValidationResult> {
+    if (!this.configured) {
+      return { valid: false, status: 'unactivated', messageCode: 'NETWORK_UNAVAILABLE' };
+    }
+    try {
+      const res = await fetch(this.baseUrl + '/v1/license/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(input),
+      });
+      const data = (await res.json()) as LicenseValidationResult;
+      if (data?.valid && data.lease) cacheServerIssuedLease(data.lease);
+      return data;
+    } catch {
+      return { valid: false, status: 'offline-unverified', messageCode: 'NETWORK_UNAVAILABLE' };
+    }
+  }
+
+  async refresh(deviceId: string): Promise<LicenseValidationResult> {
+    if (!this.configured) {
+      const lease = getCachedLicenseLease();
+      if (!lease) return { valid: false, status: 'unactivated', messageCode: 'NETWORK_UNAVAILABLE' };
+      return {
+        valid: getCachedLeaseDisplayStatus(lease) === 'active' || getCachedLeaseDisplayStatus(lease) === 'grace' || getCachedLeaseDisplayStatus(lease) === 'offline-unverified',
+        status: getCachedLeaseDisplayStatus(lease),
+        lease,
+        messageCode: 'OFFLINE_GRACE',
+      };
+    }
+    try {
+      const res = await fetch(this.baseUrl + '/v1/license/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ deviceId }),
+      });
+      const data = (await res.json()) as LicenseValidationResult;
+      if (data?.lease) cacheServerIssuedLease(data.lease);
+      return data;
+    } catch {
+      const lease = getCachedLicenseLease();
+      if (!lease) return { valid: false, status: 'offline-unverified', messageCode: 'NETWORK_UNAVAILABLE' };
+      return { valid: true, status: getCachedLeaseDisplayStatus(lease), lease, messageCode: 'OFFLINE_GRACE' };
+    }
+  }
+}
+
+export const onlineLicenseClient = new OnlineLicenseClient();

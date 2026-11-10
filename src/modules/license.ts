@@ -20,6 +20,8 @@ export interface LicenseRecord {
   org: string;
   exp: string;
   plan: string;
+  /** ماژول‌ها: count / accounting — اختیاری برای سازگاری عقب‌رو */
+  modules?: Array<'count' | 'accounting'>;
   device?: string | null;
   demo?: boolean;
   v?: number;
@@ -114,7 +116,7 @@ export function getDeviceId(): string {
 }
 
 function sealLicenseRecord(lic: LicenseRecord): LicenseRecord {
-  const body = {
+  const body: Record<string, unknown> = {
     org: lic.org,
     exp: lic.exp,
     plan: lic.plan || 'full',
@@ -122,9 +124,10 @@ function sealLicenseRecord(lic: LicenseRecord): LicenseRecord {
     demo: !!lic.demo,
     v: LICENSE_FORMAT_V,
   };
+  if (lic.modules && lic.modules.length) body.modules = lic.modules;
   const seal = licenseSign(JSON.stringify(body) + '|' + getDeviceId());
   return {
-    ...body,
+    ...(body as unknown as LicenseRecord),
     seal,
     activatedAt: lic.activatedAt || new Date().toISOString(),
   };
@@ -132,7 +135,7 @@ function sealLicenseRecord(lic: LicenseRecord): LicenseRecord {
 
 function verifySealedLicense(rec: LicenseRecord | null): LicenseRecord | null {
   if (!rec || !rec.seal) return null;
-  const body = {
+  const body: Record<string, unknown> = {
     org: rec.org,
     exp: rec.exp,
     plan: rec.plan || 'full',
@@ -140,6 +143,7 @@ function verifySealedLicense(rec: LicenseRecord | null): LicenseRecord | null {
     demo: !!rec.demo,
     v: rec.v || LICENSE_FORMAT_V,
   };
+  if (rec.modules && rec.modules.length) body.modules = rec.modules;
   if (licenseSign(JSON.stringify(body) + '|' + getDeviceId()) !== rec.seal) return null;
   if (rec.device && rec.device !== getDeviceId()) return null;
   return rec;
@@ -204,6 +208,7 @@ export function parseLicenseKey(key: string): LicenseRecord | null {
         org: json.org || 'لایسنس',
         exp: json.exp,
         plan: json.plan || 'full',
+        modules: Array.isArray(json.modules) ? json.modules.filter((m: string) => m === 'count' || m === 'accounting') : undefined,
         device: json.device || null,
         demo: !!json.demo,
       };
@@ -218,6 +223,7 @@ export function makeLicenseKey(opts: {
   org?: string;
   exp?: string;
   plan?: string;
+  modules?: Array<'count' | 'accounting'>;
   device?: string | null;
   demo?: boolean;
   allowOpen?: boolean;
@@ -227,7 +233,7 @@ export function makeLicenseKey(opts: {
   if (!opts.demo && !opts.allowOpen && !device) {
     throw new Error('device_required');
   }
-  const body = {
+  const body: Record<string, unknown> = {
     org: opts.org || 'مشتری',
     exp: opts.exp || '2099-12-31',
     plan,
@@ -236,6 +242,7 @@ export function makeLicenseKey(opts: {
     v: LICENSE_FORMAT_V,
     iat: new Date().toISOString().slice(0, 10),
   };
+  if (opts.modules && opts.modules.length) body.modules = opts.modules;
   const payload = btoa(unescape(encodeURIComponent(JSON.stringify(body))));
   return 'ANB3.' + payload + '.' + licenseSign(payload);
 }
@@ -278,6 +285,19 @@ export function getLicenseState(): LicenseState {
     }
   }
 
+  const offline = getOfflineLicense();
+  if (offline && !licensed) {
+    licensed = true;
+    licInfo = {
+      org: offline.customerName || 'لایسنس آفلاین',
+      exp: offline.validUntil,
+      plan: offline.plan || 'full',
+      modules: offline.modules,
+      device: offline.deviceId,
+      demo: false,
+    };
+  }
+
   return {
     trialActive,
     trialLeft,
@@ -287,7 +307,7 @@ export function getLicenseState(): LicenseState {
     deviceMismatch,
     sealBroken,
     clockTamper: !!install.clockTamper,
-    premium: licensed || trialActive,
+    premium: licensed || trialActive || !!offline,
     installId: install.id,
     deviceId: getDeviceId(),
     firstAt: install.firstAt,
@@ -331,8 +351,10 @@ export function activateLicenseFromInput(): boolean {
     parsed.device = getDeviceId();
   }
   parsed.activatedAt = new Date().toISOString();
+  // یک منبع فعال: کلید متنی جایگزین فایل آفلاین می‌شود تا تداخل ماژول پیش نیاید
+  deactivateOfflineLicense();
   saveStoredLicense(parsed);
-  toast('لایسنس فعال شد', 'success');
+  toast('لایسنس متنی فعال شد (فایل آفلاین قبلی پاک شد)', 'success');
   updateLicenseUI();
   return true;
 }
@@ -348,6 +370,9 @@ export function deactivateLicense(): void {
 export function updateLicenseUI(): void {
   const st = getLicenseState();
   let text = getOfflineLicenseStatus() || '';
+  try {
+    void import('./license-modules').then((m) => m.applyLicenseModuleUI());
+  } catch { /* UI optional */ }
   if (!text && st.clockTamper) text = '⚠️ تغییر ساعت سیستم — آزمایشی غیرفعال';
   else if (!text && st.sealBroken) text = '⚠️ لایسنس ذخیره‌شده نامعتبر یا دستکاری‌شده';
   else if (!text && st.deviceMismatch) text = '⚠️ لایسنس متعلق به دستگاه دیگر است';
@@ -361,7 +386,7 @@ export function updateLicenseUI(): void {
       (st.license?.exp || '') +
       (st.license?.device ? ' | قفل‌دستگاه' : '');
   else if (!text && st.trialActive) text = '⏳ آزمایشی — ' + st.trialLeft + ' روز باقی';
-  else if (!text) text = '🔒 آزمایشی تمام — شمارش آزاد؛ خروجی حرفه‌ای نیاز به لایسنس';
+  else if (!text) text = '🔒 بدون لایسنس ویژه — شمارش پایه آزاد؛ حسابداری و امکانات ویژه نیاز به لایسنس دارد';
 
   const el = document.getElementById('licenseDetail');
   if (el) el.textContent = text;
@@ -398,3 +423,5 @@ export function generateDemoKeyForThisDevice(days = 365): string {
     demo: false,
   });
 }
+
+

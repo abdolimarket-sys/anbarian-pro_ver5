@@ -1107,12 +1107,14 @@ function renderReportRunner(reportId:string):void{
       ${['revenues','expenses'].includes(reportId) ? `<label class="field"><span>حساب</span><select id="arFilterAccount"><option value="">همه حساب‌ها</option>${acc.accounts.filter(a=>a.isActive&&a.level==='detail').map(a=>`<option value="${esc(a.id)}">${esc(a.code)} — ${esc(a.title)}</option>`).join('')}</select></label>` : ''}
       ${reportId==='inventory' ? `<label class="field"><span>انبار</span><select id="arWarehouse"><option value="">همه انبارها</option>${[...new Set(costing.balances.map(b=>b.warehouse).filter(Boolean))].sort().map(w=>`<option value="${esc(w)}">${esc(w)}</option>`).join('')}</select></label>` : ''}
     </div>
-    <div class="actions" style="margin:10px 0;display:flex;flex-wrap:wrap;gap:8px">
-      <button type="button" class="btn btn-primary" id="arRun">تهیه گزارش</button>
-      <button type="button" class="btn btn-secondary" id="arCsv">خروجی CSV / Excel</button>
-      <button type="button" class="btn btn-secondary" id="arPrint">چاپ / PDF</button>
-      <button type="button" class="btn btn-secondary" id="arShare">اشتراک‌گذاری</button>
-      <button type="button" class="btn btn-secondary" id="arSave">ذخیره</button>
+    <div class="ar-actions-bar" role="group" aria-label="عملیات گزارش">
+      <button type="button" class="btn btn-primary ar-action-btn ar-action-primary" id="arRun">تهیه گزارش</button>
+      <div class="ar-actions-secondary">
+        <button type="button" class="btn btn-secondary ar-action-btn" id="arCsv">خروجی CSV</button>
+        <button type="button" class="btn btn-secondary ar-action-btn" id="arPrint">چاپ / PDF</button>
+        <button type="button" class="btn btn-secondary ar-action-btn" id="arShare">اشتراک</button>
+        <button type="button" class="btn btn-secondary ar-action-btn" id="arSave">ذخیره</button>
+      </div>
     </div>
     <div id="arResult" class="ar-result-panel"><p class="hint">بازه و فیلترها را مشخص کنید و «تهیه گزارش» را بزنید. نتایج در کادر اسکرول‌شونده نمایش داده می‌شوند تا صفحه طولانی نشود.</p></div>
   </div>`;

@@ -3,6 +3,7 @@
  * Never put the issuer private key in this application or APK.
  */
 import { getDeviceId } from './license';
+import { ISSUER_PUBLIC_KEY_PEM } from '../license/issuer-public-key';
 
 export interface OfflineLicensePayload {
   schemaVersion: 1;
@@ -11,6 +12,8 @@ export interface OfflineLicensePayload {
   customerName: string;
   customerReference?: string;
   plan: string;
+  /** ماژول‌های خریداری‌شده: count | accounting — اگر خالی باشد از روی plan تفسیر می‌شود */
+  modules?: Array<'count' | 'accounting'>;
   issuedAt: string;
   validUntil: string;
   deviceId: string;
@@ -33,7 +36,10 @@ function pemToBytes(pem: string): Uint8Array {
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));
 }
 function configuredPublicKey(): string {
-  return String(import.meta.env.VITE_LICENSE_PUBLIC_KEY || '').trim();
+  // اولویت: متغیر بیلد (اگر بخواهید کلید را عوض کنید) → کلید عمومی همراه برنامه
+  const fromEnv = String(import.meta.env.VITE_LICENSE_PUBLIC_KEY || '').trim();
+  if (fromEnv) return fromEnv;
+  return String(ISSUER_PUBLIC_KEY_PEM || '').trim();
 }
 
 export function getOfflineLicense(): OfflineLicensePayload | null {
@@ -51,7 +57,7 @@ export function getOfflineLicense(): OfflineLicensePayload | null {
 export async function activateOfflineLicenseFile(file: File): Promise<OfflineLicensePayload> {
   if (!file || file.size > 128 * 1024) throw new Error('حجم فایل لایسنس نامعتبر است.');
   const publicPem = configuredPublicKey();
-  if (!publicPem) throw new Error('کلید عمومی صادرکننده در نسخه برنامه تنظیم نشده است؛ VITE_LICENSE_PUBLIC_KEY را پیکربندی کنید.');
+  if (!publicPem) throw new Error('کلید عمومی صادرکننده در برنامه موجود نیست.');
   let envelope: LicenseEnvelope;
   try { envelope = JSON.parse(await file.text()) as LicenseEnvelope; }
   catch { throw new Error('ساختار فایل لایسنس قابل‌خواندن نیست.'); }
@@ -79,5 +85,8 @@ export function deactivateOfflineLicense(): void { localStorage.removeItem(STORA
 export function getOfflineLicenseStatus(): string | null {
   const license = getOfflineLicense();
   if (!license) return null;
-  return `لایسنس آفلاین امضاشده فعال — ${license.customerName} | ${license.plan} | تا ${license.validUntil}`;
+  const mods = Array.isArray(license.modules) && license.modules.length
+    ? license.modules.join('+')
+    : license.plan;
+  return `لایسنس آفلاین امضاشده فعال — ${license.customerName} | ${mods} | تا ${license.validUntil}`;
 }

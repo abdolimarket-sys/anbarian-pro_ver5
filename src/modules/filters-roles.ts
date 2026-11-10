@@ -8,6 +8,7 @@ import type { Product } from '@/types';
 import { toast } from './ui';
 import { authorizeLocally, type Permission } from './authorization';
 import { qtyEqual } from '@/utils/helpers';
+import { applyLicenseModuleUI } from './license-modules';
 
 export let locationFilter = '';
 export let warehouseFilterMode: 'active' | 'all' = 'active';
@@ -161,6 +162,7 @@ export function applyRoleUI(): void {
   if (badge) badge.textContent = settings.role === 'viewer' ? 'مشاهده‌گر' : settings.role === 'counter' ? 'شمارنده' : 'مدیر';
   const usersPanel = document.getElementById('localUsersPanel');
   if (usersPanel) usersPanel.classList.toggle('role-locked', !authorizeLocally(settings, 'users.manage').allowed);
+  try { applyLicenseModuleUI(); } catch { /* ignore */ }
 }
 
 /** بررسی یک مجوز محلی برای یکسان‌سازی کنترل‌های رابط کاربری.

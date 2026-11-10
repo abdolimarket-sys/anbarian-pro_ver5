@@ -257,6 +257,20 @@ function render(): void {
               <span class="hint">پاس چک پرداختنی حتی اگر مانده بانک/صندوق کافی نباشد.</span>
             </span>
           </label>
+          <label class="acc-settings-check">
+            <input type="checkbox" id="accAllowDefaultCustomer" ${acc.settings.allowDefaultCustomerSales!==false?'checked':''}>
+            <span>
+              <strong>فروش به خریدار پیش‌فرض</strong>
+              <span class="hint">اگر خاموش باشد، فاکتور فروش با «خریدار پیش‌فرض» ثبت یا قطعی نمی‌شود.</span>
+            </span>
+          </label>
+          <label class="acc-settings-check">
+            <input type="checkbox" id="accAllowDefaultSupplier" ${acc.settings.allowDefaultSupplierPurchases!==false?'checked':''}>
+            <span>
+              <strong>خرید از فروشنده پیش‌فرض</strong>
+              <span class="hint">اگر خاموش باشد، فاکتور خرید با «فروشنده پیش‌فرض» ثبت یا قطعی نمی‌شود.</span>
+            </span>
+          </label>
         </div>
 
         <div class="acc-settings-actions">
@@ -347,6 +361,8 @@ function bind(): void {
     data.settings.defaultCostingMethod=(el<HTMLSelectElement>('#accCostingMethod')?.value==='fifo'?'fifo':'moving-average');
     data.settings.allowNegativeStock=!!el<HTMLInputElement>('#accAllowNegativeStock')?.checked;
     data.settings.allowChequeClearWithNegativeCash=!!el<HTMLInputElement>('#accAllowChequeNegCash')?.checked;
+    data.settings.allowDefaultCustomerSales=!!el<HTMLInputElement>('#accAllowDefaultCustomer')?.checked;
+    data.settings.allowDefaultSupplierPurchases=!!el<HTMLInputElement>('#accAllowDefaultSupplier')?.checked;
     const pm=el<HTMLSelectElement>('#accPurchasePriceMode')?.value;
     data.settings.purchasePriceUpdateMode = pm === 'none' ? 'none' : pm === 'average' ? 'average' : 'last';
     const sm=el<HTMLSelectElement>('#accSalePriceMode')?.value;

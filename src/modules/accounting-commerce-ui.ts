@@ -4,6 +4,7 @@ import {
   loadCommerceData, saveCommerceData, buildInvoice, updateDraftInvoice, postInvoice,
   createCashTransaction, ensureCommerceAccounts, updateChequeStatus, invoiceOutstanding,
   upsertParty, recordOperatingEntry, listOperatingEntries,
+  assertDefaultPartyAllowed, DEFAULT_CUSTOMER_PARTY_ID, DEFAULT_SUPPLIER_PARTY_ID,
   type CommerceData, type AccountingParty, type InvoiceType, type InvoicePaymentPart, isSaleInvoiceType, isPurchaseInvoiceType,
 } from './accounting-commerce';
 import { toast } from './ui';
@@ -88,6 +89,27 @@ const qAll=<T extends HTMLElement>(s:string):T[]=>{
 
 const id=(p:string)=>`${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,7)}`;
 function money(rial:number):string { try{return `${fa(Number(formatMoneyFromRial(rial,currency)))} ${currency==='toman'?'تومان':'ریال'}`;}catch{return fa(rial)} }
+
+async function applyDefaultPartySelection(): Promise<void> {
+  const partySel = el<HTMLSelectElement>('#invoiceParty');
+  if (!partySel || partySel.value || editingInvoiceId) return;
+  try {
+    const acc = await loadAccountingData();
+    const sale = isSaleInvoiceType(activeInvoiceType);
+    if (sale && acc.settings.allowDefaultCustomerSales !== false) {
+      if ([...partySel.options].some(o => o.value === DEFAULT_CUSTOMER_PARTY_ID)) {
+        partySel.value = DEFAULT_CUSTOMER_PARTY_ID;
+        refreshSearchableSelect(partySel);
+      }
+    } else if (!sale && acc.settings.allowDefaultSupplierPurchases !== false) {
+      if ([...partySel.options].some(o => o.value === DEFAULT_SUPPLIER_PARTY_ID)) {
+        partySel.value = DEFAULT_SUPPLIER_PARTY_ID;
+        refreshSearchableSelect(partySel);
+      }
+    }
+  } catch { /* ignore */ }
+}
+
 function partyOptions(type?:'customer'|'supplier'):string {
   return (commerce?.parties||[]).filter(p=>p.isActive&&(!type||p.type==='both'||p.type===type)).map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
 }
@@ -314,7 +336,7 @@ function cashRows():string {
 function addInvoicePaymentRow(part?:InvoicePaymentPart):void {
  const host=el<HTMLDivElement>('#invoicePaymentRows');if(!host)return;
  const row=document.createElement('div');row.className='form-grid invoice-payment-row';row.style.cssText='border:1px solid var(--border-color,#ddd);border-radius:8px;padding:10px;margin:8px 0;align-items:end';
- row.innerHTML=`<label class="field">روش پرداخت<select data-pay-method><option value="cash">نقدی</option><option value="card">کارت</option><option value="cheque">چک</option><option value="credit">اعتباری (مانده بدهی)</option></select></label><label class="field">مبلغ (${currency==='toman'?'تومان':'ریال'})<input data-pay-amount inputmode="numeric" placeholder="مبلغ این مرحله"></label><label class="field" data-pay-cheque hidden style="display:none">شماره چک *<input data-pay-cheque-number autocomplete="off"></label><label class="field" data-pay-cheque hidden style="display:none">بانک *<input data-pay-cheque-bank autocomplete="off"></label><label class="field" data-pay-cheque hidden style="display:none">شماره صیادی *<input data-pay-cheque-account autocomplete="off" placeholder="شناسه صیادی ۱۶ یا ۲۰ رقمی" inputmode="numeric"></label><label class="field" data-pay-cheque hidden style="display:none">سررسید چک شمسی *<input data-pay-cheque-due placeholder="1405/01/30" inputmode="numeric" autocomplete="off"></label><label class="field" data-pay-cheque hidden style="display:none">توضیحات چک<input data-pay-cheque-note autocomplete="off"></label><button type="button" class="btn btn-sm btn-secondary" data-pay-remove>حذف این مرحله</button>`;
+ row.innerHTML=`<label class="field">روش پرداخت<select data-pay-method><option value="card">کارت‌خوان</option><option value="cash">نقدی</option><option value="cheque">چک</option><option value="credit">اعتباری (مانده بدهی)</option></select></label><label class="field">مبلغ (${currency==='toman'?'تومان':'ریال'})<input data-pay-amount inputmode="numeric" placeholder="مبلغ این مرحله"></label><label class="field" data-pay-cheque hidden style="display:none">شماره چک *<input data-pay-cheque-number autocomplete="off"></label><label class="field" data-pay-cheque hidden style="display:none">بانک *<input data-pay-cheque-bank autocomplete="off"></label><label class="field" data-pay-cheque hidden style="display:none">شماره صیادی *<input data-pay-cheque-account autocomplete="off" placeholder="شناسه صیادی ۱۶ یا ۲۰ رقمی" inputmode="numeric"></label><label class="field" data-pay-cheque hidden style="display:none">سررسید چک شمسی *<input data-pay-cheque-due placeholder="1405/01/30" inputmode="numeric" autocomplete="off"></label><label class="field" data-pay-cheque hidden style="display:none">توضیحات چک<input data-pay-cheque-note autocomplete="off"></label><button type="button" class="btn btn-sm btn-secondary" data-pay-remove>حذف این مرحله</button>`;
  host.appendChild(row);const method=row.querySelector<HTMLSelectElement>('[data-pay-method]')!;method.value=part?.method||'cash';row.querySelector<HTMLInputElement>('[data-pay-amount]')!.value=part?formatMoneyFromRial(part.amountRial,currency):'';row.querySelector<HTMLInputElement>('[data-pay-cheque-number]')!.value=part?.chequeNumber||'';row.querySelector<HTMLInputElement>('[data-pay-cheque-bank]')!.value=part?.chequeBank||'';row.querySelector<HTMLInputElement>('[data-pay-cheque-account]')!.value=part?.chequeAccount||'';row.querySelector<HTMLInputElement>('[data-pay-cheque-due]')!.value=part?.chequeDueDate||'';row.querySelector<HTMLInputElement>('[data-pay-cheque-note]')!.value=part?.note||'';
  const toggle=()=>{const show=method.value==='cheque';row.querySelectorAll<HTMLElement>('[data-pay-cheque]').forEach(x=>{x.hidden=!show;x.style.display=show?'':'none';});};method.addEventListener('change',toggle);toggle();row.querySelector('[data-pay-remove]')!.addEventListener('click',()=>row.remove());
 }
@@ -484,27 +506,29 @@ function settlementRow(part?:InvoicePaymentPart, opts?:{autoRemaining?:boolean})
    <div class="settlement-method-picker" data-settle-method-wrap>
      <span class="settlement-method-label">روش پرداخت</span>
      <div class="settlement-method-chips" role="radiogroup" aria-label="روش پرداخت" dir="rtl">
-       <button type="button" class="settlement-method-chip ${method==='cheque'?'is-active':''}" data-settle-method-btn="cheque" aria-pressed="${method==='cheque'}">چک</button>
        <button type="button" class="settlement-method-chip ${method==='card'?'is-active':''}" data-settle-method-btn="card" aria-pressed="${method==='card'}">کارت‌خوان</button>
        <button type="button" class="settlement-method-chip ${method==='cash'?'is-active':''}" data-settle-method-btn="cash" aria-pressed="${method==='cash'}">نقدی</button>
+       <button type="button" class="settlement-method-chip ${method==='cheque'?'is-active':''}" data-settle-method-btn="cheque" aria-pressed="${method==='cheque'}">چک</button>
      </div>
      <select data-settle-method hidden aria-hidden="true">
-       <option value="cash" ${method==='cash'?'selected':''}>نقدی</option>
        <option value="card" ${method==='card'?'selected':''}>کارت‌خوان</option>
+       <option value="cash" ${method==='cash'?'selected':''}>نقدی</option>
        <option value="cheque" ${isCheque?'selected':''}>چک</option>
      </select>
    </div>
-   <label class="field settlement-amount-field">مبلغ (${currency==='toman'?'تومان':'ریال'})
+   <label class="field settlement-amount-field settlement-field-box">
+     <span class="settlement-field-label">مبلغ (${currency==='toman'?'تومان':'ریال'})</span>
      <input data-settle-amount inputmode="numeric" value="${amountVal}" placeholder="مبلغ این مرحله" data-auto-remaining="${auto}">
    </label>
    <button type="button" class="btn btn-sm btn-secondary settlement-remove-btn" data-settle-remove title="حذف این مرحله">حذف</button>
  </div>
- <div class="settlement-cheque-fields form-grid" data-settle-cheque-block dir="rtl" ${isCheque?'':'hidden'} style="${isCheque?'':'display:none'}">
-   <label class="field">شماره چک *<input data-settle-cheque-number value="${esc(part?.chequeNumber||'')}" autocomplete="off" inputmode="numeric" dir="rtl"></label>
-   <label class="field">بانک *<input data-settle-cheque-bank value="${esc(part?.chequeBank||'')}" autocomplete="off" dir="rtl"></label>
-   <label class="field">شماره صیادی *<input data-settle-cheque-account value="${esc(part?.chequeAccount||'')}" autocomplete="off" placeholder="شناسه صیادی ۱۶ یا ۲۰ رقمی" inputmode="numeric" dir="ltr" style="text-align:right"></label>
-   <label class="field">تاریخ سررسید چک *<input data-settle-cheque-due value="${esc(part?.chequeDueDate||'')}" placeholder="1405/01/30" inputmode="numeric" autocomplete="off" dir="ltr" style="text-align:right"></label>
-   <label class="field">توضیحات چک<input data-settle-cheque-note value="${esc(part?.note||'')}" autocomplete="off" dir="rtl"></label>
+ <div class="settlement-cheque-fields settlement-cheque-stack" data-settle-cheque-block dir="rtl" ${isCheque?'':'hidden'} style="${isCheque?'':'display:none'}">
+   <div class="settlement-cheque-title">مشخصات چک</div>
+   <label class="field settlement-field-box">شماره چک *<input data-settle-cheque-number value="${esc(part?.chequeNumber||'')}" autocomplete="off" inputmode="numeric" dir="rtl"></label>
+   <label class="field settlement-field-box">بانک *<input data-settle-cheque-bank value="${esc(part?.chequeBank||'')}" autocomplete="off" dir="rtl"></label>
+   <label class="field settlement-field-box">شماره صیادی *<input data-settle-cheque-account value="${esc(part?.chequeAccount||'')}" autocomplete="off" placeholder="شناسه صیادی ۱۶ یا ۲۰ رقمی" inputmode="numeric" dir="ltr" style="text-align:right"></label>
+   <label class="field settlement-field-box">تاریخ سررسید چک *<input data-settle-cheque-due value="${esc(part?.chequeDueDate||'')}" placeholder="1405/01/30" inputmode="numeric" autocomplete="off" dir="ltr" style="text-align:right"></label>
+   <label class="field settlement-field-box">توضیحات چک<input data-settle-cheque-note value="${esc(part?.note||'')}" autocomplete="off" dir="rtl"></label>
  </div>
  </div>`;
 }
@@ -518,7 +542,7 @@ function openInvoiceSettlementSheet(invoiceId:string):void {
  const actionLabel=isSale?'دریافت':'پرداخت';
  overlay.innerHTML=`<div style="max-width:1000px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h2 style="margin:0 0 6px">تسویه فاکتور — ${actionLabel}</h2><p class="hint" style="margin:0">شماره ${esc(target.number)} · ${esc(party?.name||'—')} · مبلغ نهایی ${money(target.grossRial)}</p></div><button type="button" class="btn btn-secondary" id="settlementBack">بازگشت</button></div>
  <div class="card" style="margin-top:16px"><h3>نوع ${actionLabel}</h3><p class="hint">روش و مبلغ را مشخص کنید. می‌توانید چند روش را ترکیب کنید (مثلاً بخشی نقد و بخشی چک). مانده به‌صورت اعتباری ثبت می‌شود.</p><div id="settlementRows">${((target.paymentParts||[]).filter(x=>x.method!=='credit').length?(target.paymentParts||[]).filter(x=>x.method!=='credit'):[{method:'cash' as const,amountRial:Math.max(0,target.grossRial)}]).map(x=>settlementRow(x)).join('')}</div><button type="button" class="btn btn-secondary" id="settlementAdd">افزودن روش ${actionLabel}</button>
- <div class="form-grid" style="margin-top:12px"><label class="field">سررسید مانده اعتباری (شمسی)<input id="settlementDueDate" value="${esc(target.dueDate||target.date||'')}" placeholder="1405/01/30" inputmode="numeric" autocomplete="off"></label></div><p class="hint" style="margin-top:6px">اگر مبلغ را کامل نقد/کارت/چک بپردازید، سررسید لازم نیست. برای مانده اعتباری سررسید را مشخص کنید.</p><div class="card" style="margin-top:12px"><div id="settlementTotals">در حال محاسبه...</div><div id="settlementCredit" class="hint" style="margin-top:8px"></div></div>
+ <div class="settlement-credit-box" style="margin-top:12px"><label class="field settlement-field-box"><span class="settlement-field-label">سررسید مانده اعتباری (شمسی)</span><input id="settlementDueDate" value="${esc(target.dueDate||target.date||'')}" placeholder="1405/01/30" inputmode="numeric" autocomplete="off" dir="ltr" style="text-align:right"></label><p class="hint" style="margin:8px 0 0">اگر مبلغ را کامل نقد/کارت/چک بپردازید، سررسید لازم نیست. برای مانده اعتباری سررسید را مشخص کنید.</p></div><div class="card" style="margin-top:12px"><div id="settlementTotals">در حال محاسبه...</div><div id="settlementCredit" class="hint" style="margin-top:8px"></div></div>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px"><button type="button" class="btn btn-primary" id="settlementConfirm">تأیید ${actionLabel} و ثبت قطعی</button><button type="button" class="btn btn-secondary" id="settlementCancel">انصراف</button></div></div></div>`;
  document.body.appendChild(overlay);
  // تقویم شمسی مثل بقیه فرم‌ها
@@ -1682,6 +1706,7 @@ ${invoiceListFooter(activeInvoiceType)}
   }
   bind();
   enhanceCommerceSelects();
+  void applyDefaultPartySelection();
   if(!suppressCommerceSheetReopen && reopenSheet){
     await openCommercePanelSheet(reopenSheet);
   }
@@ -1973,6 +1998,7 @@ function bind():void {
       const invoiceNo=numberEl.value.trim();
       if(!invoiceNo)throw new Error('شماره فاکتور را وارد کنید.');
       if(!partyEl.value)throw new Error('طرف حساب را انتخاب کنید.');
+      await assertDefaultPartyAllowed(type, partyEl.value);
       if(commerce.invoices.some(i=>i.id!==editingInvoiceId&&i.type===type&&i.number===invoiceNo))throw new Error('شماره فاکتور در این نوع فاکتور تکراری است.');
       const rows=qAll<HTMLElement>('#commerceInvoiceLines .commerce-line');
       const lines:Array<{description:string;unit:string;quantityMilli:number;unitPriceRial:number;discountRial:number;productId?:string;warehouse?:string}>=[];
