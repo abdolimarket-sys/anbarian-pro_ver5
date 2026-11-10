@@ -192,23 +192,45 @@ function openUserEditor(existing?: LocalUser): void {
   const role = existing?.role || 'counter';
   const permissionRows = (Object.entries(PERMISSION_LABELS) as [Permission, string][]).map(([key, label]) => {
     const checked = existing ? (existing.permissionOverrides?.[key] ?? roleDefault(role, key)) : roleDefault(role, key);
-    return `<label class="local-permission-option"><input type="checkbox" name="permission" value="${key}" ${checked ? 'checked' : ''}> <span>${label}</span></label>`;
+    return `<label class="local-permission-option${checked ? ' is-on' : ''}"><input type="checkbox" name="permission" value="${key}" ${checked ? 'checked' : ''}><span class="local-permission-check" aria-hidden="true"></span><span class="local-permission-text">${label}</span></label>`;
   }).join('');
   editor.innerHTML = `<form class="local-auth-card local-user-editor-card"><h2>${existing ? 'ویرایش دسترسی کاربر' : 'افزودن کاربر'}</h2>
-    <label>نام نمایشی<input name="name" required maxlength="60" value="${escapeAttr(existing?.name || '')}"></label>
-    <label>نام کاربری<input name="username" required maxlength="40" ${existing ? 'readonly' : ''} value="${escapeAttr(existing?.username || '')}"></label>
-    ${existing ? '' : '<label>رمز اولیه<input name="password" type="password" required minlength="8" autocomplete="new-password"></label>'}
-    <label>نقش پایه<select name="role"><option value="counter" ${role === 'counter' ? 'selected' : ''}>شمارنده</option><option value="viewer" ${role === 'viewer' ? 'selected' : ''}>مشاهده‌گر</option><option value="admin" ${role === 'admin' ? 'selected' : ''}>مدیر</option></select></label>
-    <h3>مجوزهای اختصاصی</h3><p>تیک فعال یعنی اجازه دارد؛ گزینه‌های بدون تیک مسدود می‌شوند. مدیر اصلی همیشه دسترسی کامل دارد.</p><div class="local-permission-grid">${permissionRows}</div>
-    <p class="local-auth-error" id="localUserEditorError" role="alert"></p><div class="local-user-editor-actions"><button class="btn btn-primary" type="submit">ذخیره</button><button class="btn btn-secondary" type="button" id="localUserEditorCancel">انصراف</button></div></form>`;
+    <div class="local-user-editor-fields">
+      <label class="local-field">نام نمایشی<input name="name" required maxlength="60" value="${escapeAttr(existing?.name || '')}"></label>
+      <label class="local-field">نام کاربری<input name="username" required maxlength="40" ${existing ? 'readonly' : ''} value="${escapeAttr(existing?.username || '')}"></label>
+      ${existing ? '' : '<label class="local-field">رمز اولیه<input name="password" type="password" required minlength="8" autocomplete="new-password"></label>'}
+      <label class="local-field local-field-role"><span class="local-field-label">نقش پایه</span>
+        <select name="role" class="local-role-select">
+          <option value="counter" ${role === 'counter' ? 'selected' : ''}>شمارنده</option>
+          <option value="viewer" ${role === 'viewer' ? 'selected' : ''}>مشاهده‌گر</option>
+          <option value="admin" ${role === 'admin' ? 'selected' : ''}>مدیر</option>
+        </select>
+        <small class="local-field-hint">نقش پایه پیش‌فرض مجوزها را مشخص می‌کند؛ بعد می‌توانید تیک‌ها را شخصی‌سازی کنید.</small>
+      </label>
+    </div>
+    <section class="local-permission-section" aria-labelledby="localPermTitle">
+      <div class="local-permission-head">
+        <h3 id="localPermTitle">مجوزهای اختصاصی</h3>
+        <p>تیک فعال = اجازه دارد · بدون تیک = مسدود. مدیر اصلی همیشه دسترسی کامل دارد.</p>
+      </div>
+      <div class="local-permission-grid">${permissionRows}</div>
+    </section>
+    <p class="local-auth-error" id="localUserEditorError" role="alert"></p>
+    <div class="local-user-editor-actions"><button class="btn btn-primary" type="submit">ذخیره</button><button class="btn btn-secondary" type="button" id="localUserEditorCancel">انصراف</button></div></form>`;
   document.body.appendChild(editor);
   const form = editor.querySelector('form')!;
+  form.querySelectorAll<HTMLInputElement>('input[name="permission"]').forEach((input) => {
+    input.addEventListener('change', () => {
+      input.closest('.local-permission-option')?.classList.toggle('is-on', input.checked);
+    });
+  });
   form.querySelector('#localUserEditorCancel')?.addEventListener('click', () => editor.remove());
   const roleSelect = form.querySelector('[name="role"]') as HTMLSelectElement;
   roleSelect.addEventListener('change', () => {
     const roleNow = roleSelect.value as AppRole;
     form.querySelectorAll<HTMLInputElement>('input[name="permission"]').forEach(input => {
       input.checked = roleDefault(roleNow, input.value as Permission);
+      input.closest('.local-permission-option')?.classList.toggle('is-on', input.checked);
     });
   });
   form.addEventListener('submit', async event => {

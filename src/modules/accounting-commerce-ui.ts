@@ -9,7 +9,7 @@ import {
 import { toast } from './ui';
 import { printHtmlSafely, shareFileContent, downloadFile } from '@/utils/helpers';
 import { openProductModal, offerAddProduct } from './products-ui';
-import { enhanceSelectWithSearch, refreshSearchableSelect } from './searchable-select';
+import { enhanceSelectWithSearch, refreshSearchableSelect, normalizeSearchText } from './searchable-select';
 import { choosePaperSize } from './print-paper';
 import { enhanceDateFields, attachJalaliCalendar, todayJalali as sharedTodayJalali } from './date-picker';
 import { products, logAudit, findProductByCode, settings } from './state';
@@ -314,9 +314,9 @@ function cashRows():string {
 function addInvoicePaymentRow(part?:InvoicePaymentPart):void {
  const host=el<HTMLDivElement>('#invoicePaymentRows');if(!host)return;
  const row=document.createElement('div');row.className='form-grid invoice-payment-row';row.style.cssText='border:1px solid var(--border-color,#ddd);border-radius:8px;padding:10px;margin:8px 0;align-items:end';
- row.innerHTML=`<label class="field">روش پرداخت<select data-pay-method><option value="cash">نقدی</option><option value="card">کارت</option><option value="cheque">چک</option><option value="credit">اعتباری (مانده بدهی)</option></select></label><label class="field">مبلغ (${currency==='toman'?'تومان':'ریال'})<input data-pay-amount inputmode="numeric" placeholder="مبلغ این مرحله"></label><label class="field" data-pay-cheque hidden>شماره چک<input data-pay-cheque-number></label><label class="field" data-pay-cheque hidden>بانک<input data-pay-cheque-bank></label><label class="field" data-pay-cheque hidden>شماره حساب / شناسه صیادی<input data-pay-cheque-account></label><label class="field" data-pay-cheque hidden>سررسید چک شمسی<input data-pay-cheque-due placeholder="1405/01/30"></label><label class="field" data-pay-cheque hidden>توضیحات چک<input data-pay-cheque-note></label><button type="button" class="btn btn-sm btn-secondary" data-pay-remove>حذف این مرحله</button>`;
+ row.innerHTML=`<label class="field">روش پرداخت<select data-pay-method><option value="cash">نقدی</option><option value="card">کارت</option><option value="cheque">چک</option><option value="credit">اعتباری (مانده بدهی)</option></select></label><label class="field">مبلغ (${currency==='toman'?'تومان':'ریال'})<input data-pay-amount inputmode="numeric" placeholder="مبلغ این مرحله"></label><label class="field" data-pay-cheque hidden style="display:none">شماره چک *<input data-pay-cheque-number autocomplete="off"></label><label class="field" data-pay-cheque hidden style="display:none">بانک *<input data-pay-cheque-bank autocomplete="off"></label><label class="field" data-pay-cheque hidden style="display:none">شماره صیادی *<input data-pay-cheque-account autocomplete="off" placeholder="شناسه صیادی ۱۶ یا ۲۰ رقمی" inputmode="numeric"></label><label class="field" data-pay-cheque hidden style="display:none">سررسید چک شمسی *<input data-pay-cheque-due placeholder="1405/01/30" inputmode="numeric" autocomplete="off"></label><label class="field" data-pay-cheque hidden style="display:none">توضیحات چک<input data-pay-cheque-note autocomplete="off"></label><button type="button" class="btn btn-sm btn-secondary" data-pay-remove>حذف این مرحله</button>`;
  host.appendChild(row);const method=row.querySelector<HTMLSelectElement>('[data-pay-method]')!;method.value=part?.method||'cash';row.querySelector<HTMLInputElement>('[data-pay-amount]')!.value=part?formatMoneyFromRial(part.amountRial,currency):'';row.querySelector<HTMLInputElement>('[data-pay-cheque-number]')!.value=part?.chequeNumber||'';row.querySelector<HTMLInputElement>('[data-pay-cheque-bank]')!.value=part?.chequeBank||'';row.querySelector<HTMLInputElement>('[data-pay-cheque-account]')!.value=part?.chequeAccount||'';row.querySelector<HTMLInputElement>('[data-pay-cheque-due]')!.value=part?.chequeDueDate||'';row.querySelector<HTMLInputElement>('[data-pay-cheque-note]')!.value=part?.note||'';
- const toggle=()=>row.querySelectorAll<HTMLElement>('[data-pay-cheque]').forEach(x=>x.hidden=method.value!=='cheque');method.addEventListener('change',toggle);toggle();row.querySelector('[data-pay-remove]')!.addEventListener('click',()=>row.remove());
+ const toggle=()=>{const show=method.value==='cheque';row.querySelectorAll<HTMLElement>('[data-pay-cheque]').forEach(x=>{x.hidden=!show;x.style.display=show?'':'none';});};method.addEventListener('change',toggle);toggle();row.querySelector('[data-pay-remove]')!.addEventListener('click',()=>row.remove());
 }
 function readInvoicePaymentParts():InvoicePaymentPart[]{return [...document.querySelectorAll<HTMLElement>('.invoice-payment-row')].map(row=>{const method=row.querySelector<HTMLSelectElement>('[data-pay-method]')!.value as InvoicePaymentPart['method'];return {method,amountRial:parseMoneyToRial(digits(row.querySelector<HTMLInputElement>('[data-pay-amount]')!.value||'0'),currency),...(method==='cheque'?{chequeNumber:row.querySelector<HTMLInputElement>('[data-pay-cheque-number]')!.value,chequeBank:row.querySelector<HTMLInputElement>('[data-pay-cheque-bank]')!.value,chequeAccount:row.querySelector<HTMLInputElement>('[data-pay-cheque-account]')!.value,chequeDueDate:digits(row.querySelector<HTMLInputElement>('[data-pay-cheque-due]')!.value),note:row.querySelector<HTMLInputElement>('[data-pay-cheque-note]')!.value}:{})};}).filter(x=>x.amountRial>0);}
 
@@ -448,22 +448,24 @@ function addProductToInvoice(productId:string, keepScanReady=false):void {
 }
 function invoiceProductMatches(value:string){
   const raw=(value||'').trim();if(!raw)return [];
-  const q=digits(raw).toLocaleLowerCase();
-  const qRaw=raw.toLocaleLowerCase();
+  const q=normalizeSearchText(raw);
+  if(!q)return [];
+  const tokens=q.split(' ').filter(Boolean);
   return products.filter(p=>{
-    const name=(p.name||'').toLocaleLowerCase();
-    const code=digits(p.code||'').toLocaleLowerCase();
-    const sku=digits(p.sku||'').toLocaleLowerCase();
-    return name.includes(qRaw)||name.includes(q)||code.includes(q)||sku.includes(q)||digits(name).includes(q);
-  }).slice(0,12);
+    const hay=normalizeSearchText([p.name,p.code,p.sku].filter(Boolean).join(' '));
+    return tokens.every(t=>hay.includes(t));
+  }).slice(0,20);
 }
 function resolveInvoiceProduct(value:string){
   const raw=(value||'').trim();if(!raw)return null;
-  const q=digits(raw).toLocaleLowerCase();
-  const qRaw=raw.toLocaleLowerCase();
+  const q=normalizeSearchText(raw);
   const matches=invoiceProductMatches(value);
-  return matches.find(p=>p.name.trim().toLocaleLowerCase()===qRaw||p.name.trim().toLocaleLowerCase()===q||digits(p.code||'').toLocaleLowerCase()===q||digits(p.sku||'').toLocaleLowerCase()===q)
-    || (matches.length===1?matches[0]:null);
+  return matches.find(p=>{
+    const name=normalizeSearchText(p.name);
+    const code=normalizeSearchText(p.code||'');
+    const sku=normalizeSearchText(p.sku||'');
+    return name===q||code===q||sku===q;
+  }) || (matches.length===1?matches[0]:null);
 }
 function renderInvoiceProductSuggestions(value:string,activeIndex=0):void{
  const host=el<HTMLDivElement>('#invoiceProductSuggestions');if(!host)return;const matches=invoiceProductMatches(value);if(!matches.length){host.innerHTML='';host.hidden=true;return;}
@@ -500,7 +502,7 @@ function settlementRow(part?:InvoicePaymentPart, opts?:{autoRemaining?:boolean})
  <div class="settlement-cheque-fields form-grid" data-settle-cheque-block ${isCheque?'':'hidden'} style="${isCheque?'':'display:none'}">
    <label class="field">شماره چک<input data-settle-cheque-number value="${esc(part?.chequeNumber||'')}" autocomplete="off"></label>
    <label class="field">بانک<input data-settle-cheque-bank value="${esc(part?.chequeBank||'')}" autocomplete="off"></label>
-   <label class="field">شناسه چک (صیادی / حساب) *<input data-settle-cheque-account value="${esc(part?.chequeAccount||'')}" autocomplete="off"></label>
+   <label class="field">شماره صیادی *<input data-settle-cheque-account value="${esc(part?.chequeAccount||'')}" autocomplete="off" placeholder="شناسه صیادی ۱۶ یا ۲۰ رقمی" inputmode="numeric"></label>
    <label class="field">تاریخ سررسید چک<input data-settle-cheque-due value="${esc(part?.chequeDueDate||'')}" placeholder="1405/01/30" inputmode="numeric" autocomplete="off"></label>
    <label class="field">توضیحات چک<input data-settle-cheque-note value="${esc(part?.note||'')}" autocomplete="off"></label>
  </div>
@@ -696,7 +698,7 @@ function openInvoiceSettlementSheet(invoiceId:string):void {
 overlay.querySelector<HTMLButtonElement>('#settlementConfirm')!.addEventListener('click',async()=>{try{const activeCommerce=commerce;if(!activeCommerce)throw new Error('اطلاعات فاکتور در دسترس نیست.');const realParts=read().filter(x=>x.method!=='credit');const total=realParts.reduce((n,x)=>n+x.amountRial,0);if(total>target.grossRial)throw new Error('جمع دریافت/پرداخت نباید از مبلغ فاکتور بیشتر شود.');const creditAmount=Math.max(0,target.grossRial-total);const parts:InvoicePaymentPart[]=[...realParts,...(creditAmount>0?[{method:'credit' as const,amountRial:creditAmount,note:'مانده اعتباری فاکتور'}]:[])];let dueDate=digits(overlay.querySelector<HTMLInputElement>('#settlementDueDate')!.value||'');
  if(creditAmount>0&&!dueDate) dueDate=digits(target.date||'');
  if(creditAmount>0&&!dueDate)throw new Error('برای مانده اعتباری، تاریخ سررسید را مشخص کنید.');
- if(dueDate&&!/^\d{4}\/\d{2}\/\d{2}$/.test(dueDate))throw new Error('تاریخ سررسید باید به شکل سال/ماه/روز شمسی باشد.');const chequeParts=parts.filter(x=>x.method==='cheque');if(chequeParts.some(x=>!x.chequeNumber?.trim()||!x.chequeBank?.trim()||!x.chequeAccount?.trim()||!x.chequeDueDate))throw new Error('برای هر چک، شماره چک، بانک، شناسه چک (صیادی/حساب) و تاریخ سررسید الزامی است.');const chequeKeys=chequeParts.map(x=>`${(x.chequeNumber||'').trim()}|${(x.chequeBank||'').trim().toLocaleLowerCase()}`);if(new Set(chequeKeys).size!==chequeKeys.length||chequeKeys.some(k=>activeCommerce.cashTransactions.some(t=>t.method==='cheque'&&t.chequeStatus!=='void'&&`${(t.chequeNumber||'').trim()}|${(t.chequeBank||'').trim().toLocaleLowerCase()}`===k)))throw new Error('شماره چک با همین بانک قبلاً ثبت شده است.');
+ if(dueDate&&!/^\d{4}\/\d{2}\/\d{2}$/.test(dueDate))throw new Error('تاریخ سررسید باید به شکل سال/ماه/روز شمسی باشد.');const chequeParts=parts.filter(x=>x.method==='cheque');if(chequeParts.some(x=>!x.chequeNumber?.trim()||!x.chequeBank?.trim()||!x.chequeAccount?.trim()||!x.chequeDueDate))throw new Error('برای هر چک، شماره چک، بانک، شماره صیادی و تاریخ سررسید الزامی است.');const chequeKeys=chequeParts.map(x=>`${(x.chequeNumber||'').trim()}|${(x.chequeBank||'').trim().toLocaleLowerCase()}`);if(new Set(chequeKeys).size!==chequeKeys.length||chequeKeys.some(k=>activeCommerce.cashTransactions.some(t=>t.method==='cheque'&&t.chequeStatus!=='void'&&`${(t.chequeNumber||'').trim()}|${(t.chequeBank||'').trim().toLocaleLowerCase()}`===k)))throw new Error('شماره چک با همین بانک قبلاً ثبت شده است.');
  const cashAccountId=realParts.length?await resolveCashAccountId():'';
  if(realParts.length&&!cashAccountId)throw new Error('برای ثبت دریافت/پرداخت، ابتدا حساب صندوق یا بانک فعال تعریف کنید.');
  // ذخیره شرایط پرداخت روی پیش‌نویس قبل از قطعی‌سازی
@@ -1654,9 +1656,11 @@ ${invoiceListFooter(activeInvoiceType)}
 <label class="field">مبلغ<input id="cashAmount" inputmode="decimal" placeholder="۰"></label>
 <input type="hidden" id="cashAllocation" value="">
 <input type="hidden" id="cashDescription" value="">
-<label class="field" data-cheque-field hidden>شماره چک<input id="cashChequeNumber"></label>
-<label class="field" data-cheque-field hidden>بانک<input id="cashChequeBank"></label>
-<label class="field" data-cheque-field hidden>سررسید چک<input id="cashChequeDue" placeholder="1405/01/30"></label>
+<label class="field cash-cheque-only" data-cheque-field hidden style="display:none">شماره چک *<input id="cashChequeNumber" autocomplete="off"></label>
+<label class="field cash-cheque-only" data-cheque-field hidden style="display:none">بانک *<input id="cashChequeBank" autocomplete="off"></label>
+<label class="field cash-cheque-only" data-cheque-field hidden style="display:none">شماره صیادی *<input id="cashChequeAccount" autocomplete="off" placeholder="شناسه صیادی ۱۶ یا ۲۰ رقمی" inputmode="numeric"></label>
+<label class="field cash-cheque-only" data-cheque-field hidden style="display:none">سررسید چک *<input id="cashChequeDue" placeholder="1405/01/30" inputmode="numeric" autocomplete="off"></label>
+<label class="field cash-cheque-only" data-cheque-field hidden style="display:none">توضیحات چک<input id="cashChequeNote" autocomplete="off"></label>
 </div>
 <button class="btn btn-primary" id="cashSave" type="button">ثبت</button>
 <div class="table-wrap" style="margin-top:14px"><table class="data-table"><thead><tr><th>شماره</th><th>نوع</th><th>طرف</th><th>تاریخ</th><th>مبلغ</th><th>وضعیت</th><th></th></tr></thead><tbody>${cashRows()}</tbody></table></div>
@@ -2119,8 +2123,16 @@ function bind():void {
   const refreshCashInvoices=()=>{if(!commerce)return;const type=el<HTMLSelectElement>('#cashType')!.value;const partyId=el<HTMLSelectElement>('#cashParty')!.value;const eligible=commerce.invoices.filter(i=>i.status==='posted'&&i.partyId===partyId&&((type==='receipt'&&i.type==='sale')||(type==='payment'&&i.type==='purchase'))&&invoiceOutstanding(i.id,commerce!)>0);const invSel=el<HTMLSelectElement>('#cashInvoice');if(invSel){invSel.innerHTML='<option value="">بدون تخصیص (علی‌الحساب)</option>'+eligible.map(i=>`<option value="${esc(i.id)}">${esc(i.number)} — مانده ${money(invoiceOutstanding(i.id,commerce!))}</option>`).join('');refreshSearchableSelect(invSel);}};
   el<HTMLSelectElement>('#cashType')?.addEventListener('change',()=>{const type=el<HTMLSelectElement>('#cashType')!.value;const partySel=el<HTMLSelectElement>('#cashParty');if(partySel){partySel.innerHTML='<option value="">انتخاب طرف حساب</option>'+partyOptions(type==='receipt'?'customer':'supplier');refreshSearchableSelect(partySel);}refreshCashInvoices()});
   el<HTMLSelectElement>('#cashParty')?.addEventListener('change',refreshCashInvoices);
-  el<HTMLSelectElement>('#cashMethod')?.addEventListener('change',()=>{const show=el<HTMLSelectElement>('#cashMethod')!.value==='cheque';document.querySelectorAll<HTMLElement>('[data-cheque-field]').forEach(x=>x.hidden=!show)});
-  el<HTMLButtonElement>('#cashSave')?.addEventListener('click',async()=>{if(!commerce)return;try{const type=el<HTMLSelectElement>('#cashType')!.value as 'receipt'|'payment';const result=await createCashTransaction({type,number:el<HTMLInputElement>('#cashNumber')!.value,date:digits(el<HTMLInputElement>('#cashDate')!.value),fiscalPeriodId:await activeFiscalPeriodId(),partyId:el<HTMLSelectElement>('#cashParty')!.value,cashAccountId:el<HTMLSelectElement>('#cashAccount')!.value,amountRial:parseMoneyToRial(digits(el<HTMLInputElement>('#cashAmount')!.value),currency),description:el<HTMLInputElement>('#cashDescription')!.value,method:el<HTMLSelectElement>('#cashMethod')!.value as any,allocations:el<HTMLSelectElement>('#cashInvoice')!.value?[{invoiceId:el<HTMLSelectElement>('#cashInvoice')!.value,amountRial:parseMoneyToRial(digits(el<HTMLInputElement>('#cashAllocation')!.value||el<HTMLInputElement>('#cashAmount')!.value),currency)}]:[],chequeNumber:el<HTMLInputElement>('#cashChequeNumber')!.value,chequeBank:el<HTMLInputElement>('#cashChequeBank')!.value,chequeDueDate:digits(el<HTMLInputElement>('#cashChequeDue')!.value)},commerce);commerce=result.commerce;await saveCommerceData(commerce);render();refreshAccounting();toast('دریافت/پرداخت و سند حسابداری ثبت شد','success')}catch(e){toast(e instanceof Error?e.message:'خطا در ثبت دریافت/پرداخت','error')}});
+  el<HTMLSelectElement>('#cashMethod')?.addEventListener('change',()=>{
+    const show=el<HTMLSelectElement>('#cashMethod')!.value==='cheque';
+    document.querySelectorAll<HTMLElement>('[data-cheque-field]').forEach(x=>{
+      x.hidden=!show;
+      x.style.display=show?'':'none';
+    });
+  });
+  // وضعیت اولیه
+  (()=>{const m=el<HTMLSelectElement>('#cashMethod');if(!m)return;const show=m.value==='cheque';document.querySelectorAll<HTMLElement>('[data-cheque-field]').forEach(x=>{x.hidden=!show;x.style.display=show?'':'none';});})();
+  el<HTMLButtonElement>('#cashSave')?.addEventListener('click',async()=>{if(!commerce)return;try{const type=el<HTMLSelectElement>('#cashType')!.value as 'receipt'|'payment';const method=el<HTMLSelectElement>('#cashMethod')!.value as any;if(method==='cheque'){const cn=(el<HTMLInputElement>('#cashChequeNumber')?.value||'').trim();const bank=(el<HTMLInputElement>('#cashChequeBank')?.value||'').trim();const sayadi=(el<HTMLInputElement>('#cashChequeAccount')?.value||'').trim();const due=digits(el<HTMLInputElement>('#cashChequeDue')?.value||'');if(!cn||!bank||!sayadi||!due||!/^\d{4}\/\d{2}\/\d{2}$/.test(due))throw new Error('برای چک، شماره چک، بانک، شماره صیادی و سررسید الزامی است.');}const result=await createCashTransaction({type,number:el<HTMLInputElement>('#cashNumber')!.value,date:digits(el<HTMLInputElement>('#cashDate')!.value),fiscalPeriodId:await activeFiscalPeriodId(),partyId:el<HTMLSelectElement>('#cashParty')!.value,cashAccountId:el<HTMLSelectElement>('#cashAccount')!.value,amountRial:parseMoneyToRial(digits(el<HTMLInputElement>('#cashAmount')!.value),currency),description:el<HTMLInputElement>('#cashDescription')!.value,method:el<HTMLSelectElement>('#cashMethod')!.value as any,allocations:el<HTMLSelectElement>('#cashInvoice')!.value?[{invoiceId:el<HTMLSelectElement>('#cashInvoice')!.value,amountRial:parseMoneyToRial(digits(el<HTMLInputElement>('#cashAllocation')!.value||el<HTMLInputElement>('#cashAmount')!.value),currency)}]:[],chequeNumber:el<HTMLInputElement>('#cashChequeNumber')!.value,chequeBank:el<HTMLInputElement>('#cashChequeBank')!.value,chequeAccount:el<HTMLInputElement>('#cashChequeAccount')?.value||'',chequeNote:el<HTMLInputElement>('#cashChequeNote')?.value||'',chequeDueDate:digits(el<HTMLInputElement>('#cashChequeDue')!.value)},commerce);commerce=result.commerce;await saveCommerceData(commerce);render();refreshAccounting();toast('دریافت/پرداخت و سند حسابداری ثبت شد','success')}catch(e){toast(e instanceof Error?e.message:'خطا در ثبت دریافت/پرداخت','error')}});
   document.querySelectorAll<HTMLElement>('[data-cheque-clear]').forEach(b=>b.addEventListener('click',async()=>{if(!commerce)return;try{const date=prompt('تاریخ وصول/تسویه شمسی را وارد کنید (مثلاً ۱۴۰۵/۰۱/۳۰):');if(!date)return;const result=await updateChequeStatus(b.dataset.chequeClear!,'cleared',digits(date),commerce);commerce=result.commerce;await recordChequeEvent(b.dataset.chequeClear!,'cleared_note',digits(date),'وصول/تسویه با سند حسابداری');render();refreshAccounting();toast('وصول/تسویه چک ثبت شد','success')}catch(e){toast(e instanceof Error?e.message:'خطا در تسویه چک','error')}}));
   document.querySelectorAll<HTMLElement>('[data-cheque-bounce]').forEach(b=>b.addEventListener('click',async()=>{if(!commerce)return;try{const date=prompt('تاریخ برگشت چک شمسی را وارد کنید:');if(!date)return;const result=await updateChequeStatus(b.dataset.chequeBounce!,'bounced',digits(date),commerce);commerce=result.commerce;const reason=prompt('علت برگشت چک:')||'علت اعلام نشده';await recordChequeEvent(b.dataset.chequeBounce!,'bounced_note',digits(date),reason);render();refreshAccounting();toast('برگشت چک و اثر حسابداری ثبت شد','success')}catch(e){toast(e instanceof Error?e.message:'خطا در ثبت برگشت چک','error')}}));
 

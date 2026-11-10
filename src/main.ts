@@ -318,16 +318,20 @@ async function bootApp() {
     // پیام خوش‌آمد / راهنمای کالا فقط بعد از ورود موفق نشان داده می‌شود (نه همزمان با برگه ساخت کاربر)
     window.addEventListener('anbarin:auth-ready', ((ev: Event) => {
       const detail = (ev as CustomEvent<{ isFirstAccount?: boolean; name?: string }>).detail || {};
+      let justRestored = 0;
+      try { justRestored = Number(sessionStorage.getItem('anbarin_just_restored_external') || 0); } catch { justRestored = 0; }
       if (detail.isFirstAccount) {
         toast(`خوش آمدید${detail.name ? ' ' + detail.name : ''} — حساب مدیر ساخته شد`, 'success');
-        if (products.length === 0) {
+        if (products.length === 0 && justRestored <= 0) {
           setTimeout(() => toast('قدم بعد: از بخش کالاها، کالا اضافه یا فایل اکسل وارد کنید', 'info'), 900);
         }
         return;
       }
-      if (products.length === 0) {
+      // اگر همین لحظه از پشتیبان بیرونی بازیابی شده، پیام «کالا خالی» نشان نده
+      if (products.length === 0 && justRestored <= 0) {
         toast('هنوز کالایی ثبت نشده — از بخش کالاها شروع کنید', 'info');
       }
+      try { sessionStorage.removeItem('anbarin_just_restored_external'); } catch { /* ignore */ }
     }) as EventListener, { once: false });
   } catch (err) {
     console.error('bootApp failed', err);
@@ -592,7 +596,7 @@ function renderShell() {
             <label class="set-row"><span>نام اپراتور</span><input type="text" id="setOperator" placeholder="نام شما" /></label>
           </div>
 
-          <div class="card" style="margin-top:14px;padding:12px;border:1px solid var(--border,#e2e8f0);background:var(--surface-2,#f8fafc)">
+          <div class="card" style="margin-top:14px;padding:12px;border:1px solid var(--border);background:var(--primary-soft);border-radius:var(--radius-sm)">
             <h3 style="margin:0 0 6px;font-size:1rem">فروشگاه / شرکت (فاکتور)</h3>
             <p class="hint" style="margin:0 0 10px">این اطلاعات روی فاکتور چاپ و اشتراک نمایش داده می‌شود.</p>
             <div class="form-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px">
@@ -610,13 +614,13 @@ function renderShell() {
               <input id="setBusinessLogo" type="file" accept="image/png,image/jpeg,image/webp,image/*" style="margin-top:4px;width:100%" />
             </label>
             <div style="display:flex;align-items:center;gap:12px;margin-top:8px;flex-wrap:wrap">
-              <img id="setBusinessLogoPreview" alt="پیش‌نمایش لوگو" style="max-height:56px;max-width:120px;display:none;border:1px solid var(--border,#ddd);border-radius:8px;padding:4px;background:#fff" />
+              <img id="setBusinessLogoPreview" alt="پیش‌نمایش لوگو" style="max-height:56px;max-width:120px;display:none;border:1px solid var(--border);border-radius:8px;padding:4px;background:var(--card)" />
               <button type="button" class="btn btn-secondary btn-sm" id="btnClearBusinessLogo">حذف لوگو</button>
             </div>
           </div>
 
 
-          <div class="card" style="margin-top:14px;padding:12px;border:1px solid var(--border,#e2e8f0);background:var(--surface-2,#f8fafc)">
+          <div class="card" style="margin-top:14px;padding:12px;border:1px solid var(--border);background:var(--primary-soft);border-radius:var(--radius-sm)">
             <h3 style="margin:0 0 6px;font-size:1rem">پشتیبان خودکار و آنلاین</h3>
             <p class="hint" style="margin:0 0 8px"><b>Google Drive:</b> روی «ورود Google Drive» بزنید. اگر ورود مستقیم حساب ممکن باشد بدون انتخاب پوشه وصل می‌شود؛ در غیر این صورت یک‌بار پوشه Drive را انتخاب می‌کنید و بعدش خودکار ادامه می‌یابد. بدون اتصال، پشتیبان محلی فعال است.</p>
             <p class="hint" id="autoBackupLocationLabel" style="margin:0 0 10px">وضعیت: —</p>

@@ -3,11 +3,20 @@
  * مقدار و رویداد change همان select اصلی حفظ می‌شود تا بقیه کدها نشکنند.
  */
 
-function normalizeSearchText(value: unknown): string {
+/** نرمال‌سازی متن برای جستجوی فارسی/عربی (ک/ك، ی/ي، ارقام، فاصله‌ها) */
+export function normalizeSearchText(value: unknown): string {
   return String(value ?? '')
-    .replace(/[یي]/g, 'ی')
-    .replace(/[کك]/g, 'ک')
-    .replace(/[\u200c\u200f\u200e]/g, ' ')
+    // ی عربی/فارسی و اشکال مشابه
+    .replace(/[یيىئ]/g, 'ی')
+    // ک عربی/فارسی
+    .replace(/[کكڪ]/g, 'ک')
+    // الف و همزه
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/[ةهۀ]/g, 'ه')
+    .replace(/[ؤ]/g, 'و')
+    // حذف کشیده، نیم‌فاصله و نویسه‌های نامرئی
+    .replace(/[ـ‌‏‎‪-‮⁦-⁩]/g, ' ')
+    // ارقام فارسی و عربی → لاتین
     .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
     .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
     .replace(/\s+/g, ' ')

@@ -248,18 +248,11 @@ export async function tryRecoverFromExternalBackup(): Promise<'restored' | 'none
 
     if (!candidates.length) return 'none';
     candidates.sort((a, b) => (b.modified || 0) - (a.modified || 0));
-    const latest = candidates[0];
-    const where = latest.source === 'drive' ? 'Google Drive' : 'حافظه دستگاه';
-    const msg = usersEmpty
-      ? `یک پشتیبان خودکار در ${where} پیدا شد (${latest.name}). بازیابی شود تا کالاها و حساب‌ها برگردند؟`
-      : `داده کالا خالی است ولی پشتیبان در ${where} هست (${latest.name}). بازیابی شود؟`;
-    if (!confirm(msg)) return 'none';
 
-    const file = latest.source === 'drive'
-      ? await NativeDriveBackup.read({ id: latest.id, name: latest.name })
-      : await NativeAutoBackup.read({ name: latest.name });
-    const raw = fromBase64(file.data);
-    const parsed = JSON.parse(raw) as {
+    // چند فایل اخیر را امتحان می‌کنیم تا به اولین پشتیبانِ دارای کالا برسیم
+    const tryList = candidates.slice(0, 5);
+    let chosen: Cand | null = null;
+    let parsed: {
       schema?: string;
       app?: {
         products?: unknown[];
@@ -274,10 +267,50 @@ export async function tryRecoverFromExternalBackup(): Promise<'restored' | 'none
       costing?: unknown;
       localUsers?: unknown;
       operator?: string;
-    };
-    if (parsed.schema !== 'anbarin-full-device-backup' || !parsed.app) {
-      toast('فایل پشتیبان خودکار معتبر نیست', 'error');
+    } | null = null;
+
+    for (const cand of tryList) {
+      try {
+        const file = cand.source === 'drive'
+          ? await NativeDriveBackup.read({ id: cand.id, name: cand.name })
+          : await NativeAutoBackup.read({ name: cand.name });
+        const raw = fromBase64(file.data);
+        const p = JSON.parse(raw) as typeof parsed;
+        if (!p || p.schema !== 'anbarin-full-device-backup' || !p.app) continue;
+        const count = Array.isArray(p.app.products) ? p.app.products.length : 0;
+        // اولویت با پشتیبانی که واقعاً کالا دارد
+        if (count > 0) {
+          chosen = cand;
+          parsed = p;
+          break;
+        }
+        if (!chosen) {
+          chosen = cand;
+          parsed = p;
+        }
+      } catch (e) {
+        console.warn('[Anbarin] skip unreadable backup', cand.name, e);
+      }
+    }
+
+    if (!chosen || !parsed || !parsed.app) {
+      toast('پشتیبان پیدا شد ولی خواندن فایل ممکن نشد', 'error');
       return 'none';
+    }
+
+    const productCount = Array.isArray(parsed.app.products) ? parsed.app.products.length : 0;
+    const where = chosen.source === 'drive' ? 'Google Drive' : 'حافظه دستگاه';
+
+    // اگر کالا داخل پشتیبان هست و داخل اپ خالی است، بازیابی را خودکار انجام بده
+    // (دیالوگ confirm روی بعضی گوشی‌ها قطع یا اشتباه لغو می‌شود)
+    const shouldAuto = productCount > 0;
+    if (!shouldAuto) {
+      const msg = usersEmpty
+        ? `یک پشتیبان خودکار در ${where} پیدا شد (${chosen.name}). بازیابی شود تا کالاها و حساب‌ها برگردند؟`
+        : `داده کالا خالی است ولی پشتیبان در ${where} هست (${chosen.name}). بازیابی شود؟`;
+      if (!confirm(msg)) return 'none';
+    } else {
+      console.log('[Anbarin] auto-restoring external backup', chosen.name, 'products=', productCount);
     }
 
     if (Array.isArray(parsed.localUsers)) {
@@ -289,8 +322,9 @@ export async function tryRecoverFromExternalBackup(): Promise<'restored' | 'none
 
     // بازگردانی state اصلی از طریق بازنویسی و boot دوباره
     const { persistAppState } = await import('./storage');
+    const restoredProducts = (parsed.app.products as never[]) || [];
     await persistAppState({
-      products: (parsed.app.products as never[]) || [],
+      products: restoredProducts,
       settings: (parsed.app.settings as never) || settings,
       session: (parsed.app.session as never) || null,
       auditLog: (parsed.app.auditLog as never[]) || [],
@@ -304,10 +338,22 @@ export async function tryRecoverFromExternalBackup(): Promise<'restored' | 'none
 
     await bootState();
     saveAppState(true);
-    toast('بازیابی از پشتیبان خودکار انجام شد', 'success');
+
+    // علامت برای جلوگیری از پیام «هنوز کالایی ثبت نشده» بعد از بازیابی موفق
+    try {
+      sessionStorage.setItem('anbarin_just_restored_external', String(restoredProducts.length));
+    } catch { /* ignore */ }
+
+    toast(
+      productCount > 0
+        ? `بازیابی انجام شد — ${productCount.toLocaleString('fa-IR')} کالا از ${where}`
+        : 'بازیابی از پشتیبان خودکار انجام شد',
+      'success'
+    );
     return 'restored';
   } catch (e) {
     console.warn('[Anbarin] recover external backup failed', e);
+    toast('خطا در بازیابی پشتیبان خودکار', 'error');
     return 'none';
   }
 }
@@ -321,8 +367,13 @@ export function initExternalAutoBackupScheduler(): void {
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
-      void writeExternalAutoBackup(false);
+      // موقع بستن/رفتن به پس‌زمینه حتماً بنویس (بدون محدودیت فاصله ۱۰ دقیقه‌ای)
+      void writeExternalAutoBackup(true);
     }
+  });
+  // برخی WebViewها فقط pagehide می‌دهند
+  window.addEventListener('pagehide', () => {
+    void writeExternalAutoBackup(true);
   });
 
   window.addEventListener('anbarin:auth-ready', () => {

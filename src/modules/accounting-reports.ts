@@ -6,6 +6,7 @@ import { loadCommerceData, invoiceOutstanding, type CommerceData } from './accou
 import { loadInventoryCostData, type InventoryCostData } from './inventory-costing';
 import { products } from './state';
 import { enhanceDateFields } from './date-picker';
+import { enhanceSelectWithSearch } from './searchable-select';
 import { toast } from './ui';
 import { downloadFile, dateStr, printHtmlSafely } from '@/utils/helpers';
 
@@ -985,6 +986,13 @@ function bindReportRunner():void{
   el<HTMLSelectElement>('#arAccount')?.addEventListener('change',()=>{if(activeReportId==='ledger')renderReport();});
   ['#arParty','#arProduct','#arMethod','#arFilterAccount','#arWarehouse'].forEach(q=>el<HTMLSelectElement>(q)?.addEventListener('change',renderReport));
   el<HTMLButtonElement>('#arBackCatalog')?.addEventListener('click',()=>{activeReportId=null;renderReportsCatalog();});
+
+  // کادرهای طولانی (طرف‌حساب / کالا / حساب) جستجوپذیر شوند — بدون اسکرول ۱۰۰۰تایی
+  enhanceSelectWithSearch(el<HTMLSelectElement>('#arParty'), { placeholder: 'جستجوی طرف حساب...', minOptions: 6 });
+  enhanceSelectWithSearch(el<HTMLSelectElement>('#arProduct'), { placeholder: 'جستجوی کالا (نام / بارکد)...', minOptions: 6 });
+  enhanceSelectWithSearch(el<HTMLSelectElement>('#arAccount'), { placeholder: 'جستجوی حساب...', minOptions: 6 });
+  enhanceSelectWithSearch(el<HTMLSelectElement>('#arFilterAccount'), { placeholder: 'جستجوی حساب...', minOptions: 6 });
+  enhanceSelectWithSearch(el<HTMLSelectElement>('#arWarehouse'), { placeholder: 'جستجوی انبار...', minOptions: 6 });
 }
 
 function renderReportRunner(reportId:string):void{
@@ -1009,7 +1017,7 @@ function renderReportRunner(reportId:string):void{
       ${reportId==='ledger' ? `<label class="field" id="arAccountWrap"><span>حساب تفصیلی (دفتر معین)</span><select id="arAccount"><option value="">یک حساب انتخاب کنید</option>${acc.accounts.filter(a=>a.isActive&&a.level==='detail').map(a=>`<option value="${esc(a.id)}">${esc(a.code)} — ${esc(a.title)}</option>`).join('')}</select></label>
       <p class="hint" id="arAccountHint" style="grid-column:1/-1;margin:0">این گزارش گردش یک حساب مشخص را نشان می‌دهد؛ ابتدا حساب را انتخاب کنید.</p>` : ''}
       ${['party','sale_by_party','purchase_by_party','sale_detail','purchase_detail','returns','receivables','payables','aging','vat','cash','cheques_recv','cheques_pay'].includes(reportId) ? `<label class="field"><span>طرف حساب</span><select id="arParty"><option value="">همه طرف‌حساب‌ها</option>${commerce.parties.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label>` : ''}
-      ${['product_sales','sale_detail','purchase_detail','inventory'].includes(reportId) ? `<label class="field"><span>کالا</span><select id="arProduct"><option value="">همه کالاها</option>${products.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label>` : ''}
+      ${['product_sales','sale_detail','purchase_detail','inventory'].includes(reportId) ? `<label class="field"><span>کالا</span><select id="arProduct"><option value="">همه کالاها</option>${products.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<option value="${esc(p.id)}">${esc(p.name)}${p.code?` — ${esc(String(p.code))}`:''}</option>`).join('')}</select></label>` : ''}
       ${reportId==='cash' ? `<label class="field"><span>روش پرداخت</span><select id="arMethod"><option value="">همه روش‌ها</option><option value="cash">نقد</option><option value="card">کارت</option><option value="bank">بانک</option><option value="transfer">انتقال</option><option value="cheque">چک</option></select></label>` : ''}
       ${['revenues','expenses'].includes(reportId) ? `<label class="field"><span>حساب</span><select id="arFilterAccount"><option value="">همه حساب‌ها</option>${acc.accounts.filter(a=>a.isActive&&a.level==='detail').map(a=>`<option value="${esc(a.id)}">${esc(a.code)} — ${esc(a.title)}</option>`).join('')}</select></label>` : ''}
       ${reportId==='inventory' ? `<label class="field"><span>انبار</span><select id="arWarehouse"><option value="">همه انبارها</option>${[...new Set(costing.balances.map(b=>b.warehouse).filter(Boolean))].sort().map(w=>`<option value="${esc(w)}">${esc(w)}</option>`).join('')}</select></label>` : ''}
